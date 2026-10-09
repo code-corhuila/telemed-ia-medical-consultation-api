@@ -11,10 +11,10 @@ import (
 // It has no identity of its own: two instructions with the same fields are
 // equivalent. The aggregate owns its lifecycle.
 type MedicationInstruction struct {
-	Name        string  `json:"name"`
-	Dosage      *string `json:"dosage,omitempty"`
-	Frequency   *string `json:"frequency,omitempty"`
-	Duration    *string `json:"duration,omitempty"`
+	Name         string  `json:"name"`
+	Dosage       *string `json:"dosage,omitempty"`
+	Frequency    *string `json:"frequency,omitempty"`
+	Duration     *string `json:"duration,omitempty"`
 	Instructions *string `json:"instructions,omitempty"`
 }
 
