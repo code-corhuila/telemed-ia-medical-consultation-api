@@ -11,10 +11,10 @@ import (
 
 // Handlers holds the use cases the router invokes.
 type Handlers struct {
-	recordAttention   in.RecordAttentionPort
-	getAttention      in.GetAttentionPort
-	getPostSummary    in.GetPostSummaryPort
-	generatePostSumm  in.GeneratePostSummaryPort
+	recordAttention  in.RecordAttentionPort
+	getAttention     in.GetAttentionPort
+	getPostSummary   in.GetPostSummaryPort
+	generatePostSumm in.GeneratePostSummaryPort
 }
 
 // NewHandlers wires the use cases.

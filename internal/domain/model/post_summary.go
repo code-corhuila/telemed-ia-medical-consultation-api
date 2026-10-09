@@ -12,13 +12,13 @@ import (
 // Ownership: Medical Consultation. The PDF is not generated here
 // (per ADR-010, that belongs to document-service).
 type PostSummary struct {
-	ID                      int64     `json:"id"`
-	ConsultationID          int64     `json:"consultationId"`
-	AppointmentID           int64     `json:"appointmentId"`
-	PatientID               int64     `json:"patientId"`
-	PreconsultationSummaryID *int64   `json:"preconsultationSummaryId,omitempty"`
-	AttentionSummaryID      *int64    `json:"attentionSummaryId,omitempty"`
-	GeneratedAt             time.Time `json:"generatedAt"`
+	ID                       int64     `json:"id"`
+	ConsultationID           int64     `json:"consultationId"`
+	AppointmentID            int64     `json:"appointmentId"`
+	PatientID                int64     `json:"patientId"`
+	PreconsultationSummaryID *int64    `json:"preconsultationSummaryId,omitempty"`
+	AttentionSummaryID       *int64    `json:"attentionSummaryId,omitempty"`
+	GeneratedAt              time.Time `json:"generatedAt"`
 }
 
 // NewPostSummary builds a valid post-summary for an already-completed

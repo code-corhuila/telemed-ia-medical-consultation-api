@@ -8,9 +8,9 @@ import (
 
 func TestNewConsultation_RejectsNonPositiveIDs(t *testing.T) {
 	cases := []struct {
-		name          string
-		appointmentID int64
-		patientID     int64
+		name           string
+		appointmentID  int64
+		patientID      int64
 		professionalID int64
 	}{
 		{"zero appointment", 0, 1, 1},
