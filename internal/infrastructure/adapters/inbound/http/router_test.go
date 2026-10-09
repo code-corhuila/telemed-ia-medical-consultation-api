@@ -10,8 +10,8 @@ import (
 	"github.com/code-corhuila/telemed-ia-medical-consultation-api/internal/application/dto"
 	"github.com/code-corhuila/telemed-ia-medical-consultation-api/internal/application/usecase"
 	"github.com/code-corhuila/telemed-ia-medical-consultation-api/internal/application/usecase/fakes"
-	adapter "github.com/code-corhuila/telemed-ia-medical-consultation-api/internal/infrastructure/adapters/inbound/http"
 	"github.com/code-corhuila/telemed-ia-medical-consultation-api/internal/domain/exception"
+	adapter "github.com/code-corhuila/telemed-ia-medical-consultation-api/internal/infrastructure/adapters/inbound/http"
 )
 
 func newTestRouter(t *testing.T) (*adapter.Router, *fakes.ConsultationRepo, *fakes.AttentionRepo) {
