@@ -1,0 +1,28 @@
+name: telemed-ia-medical-consultation-api
+
+services:
+  medical-consultation-api:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    image: telemed-ia-medical-consultation-api:local
+    container_name: medical-consultation-api
+    restart: unless-stopped
+    environment:
+      SERVER_PORT: "8080"
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: ${PG_DATABASE:-telemed_ia}
+      DB_USER: ${MEDICAL_CONSULTATION_APP_USER:-medical_consultation_app}
+      DB_PASSWORD: ${MEDICAL_CONSULTATION_APP_PASSWORD:?required}
+      DB_SCHEMA: medical_consultation
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY:?required}
+    expose:
+      - "8080"
+    networks:
+      - platform
+
+networks:
+  platform:
+    external: true
+    name: platform
