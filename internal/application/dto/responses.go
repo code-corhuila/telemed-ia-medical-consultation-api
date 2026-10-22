@@ -3,6 +3,7 @@ package dto
 import "time"
 
 // AttentionSummaryResponse is what the API returns for an attention summary.
+// No cross-domain UUID fields.
 type AttentionSummaryResponse struct {
 	ID              int64           `json:"id"`
 	ConsultationID  int64           `json:"consultationId"`
@@ -17,12 +18,13 @@ type AttentionSummaryResponse struct {
 }
 
 // PostSummaryResponse is what the API returns for a post-summary.
+// Cross-domain IDs are UUID strings.
 type PostSummaryResponse struct {
 	ID                       int64     `json:"id"`
 	ConsultationID           int64     `json:"consultationId"`
-	AppointmentID            int64     `json:"appointmentId"`
-	PatientID                int64     `json:"patientId"`
-	PreconsultationSummaryID *int64    `json:"preconsultationSummaryId,omitempty"`
+	AppointmentID            string    `json:"appointmentId"`
+	PatientID                string    `json:"patientId"`
+	PreconsultationSummaryID *string   `json:"preconsultationSummaryId,omitempty"`
 	AttentionSummaryID       *int64    `json:"attentionSummaryId,omitempty"`
 	GeneratedAt              time.Time `json:"generatedAt"`
 }

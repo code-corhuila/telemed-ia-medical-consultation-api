@@ -19,11 +19,13 @@ const (
 // medical attention for an existing appointment. It is completed when the
 // professional finalizes it; a completed consultation cannot be modified
 // as an active one.
+//
+// Cross-domain IDs are UUID strings; the internal PK (ID) stays int64.
 type Consultation struct {
 	ID             int64
-	AppointmentID  int64
-	PatientID      int64
-	ProfessionalID int64
+	AppointmentID  string
+	PatientID      string
+	ProfessionalID string
 	Status         string
 	CompletedAt    *time.Time
 	CreatedAt      time.Time
@@ -32,8 +34,8 @@ type Consultation struct {
 }
 
 // NewConsultation creates a new consultation in IN_PROGRESS state.
-func NewConsultation(appointmentID, patientID, professionalID int64) (*Consultation, error) {
-	if appointmentID <= 0 || patientID <= 0 || professionalID <= 0 {
+func NewConsultation(appointmentID, patientID, professionalID string) (*Consultation, error) {
+	if !isUUID(appointmentID) || !isUUID(patientID) || !isUUID(professionalID) {
 		return nil, exception.ErrInvalidConsultation
 	}
 	now := time.Now().UTC()
@@ -50,7 +52,8 @@ func NewConsultation(appointmentID, patientID, professionalID int64) (*Consultat
 // Reconstitute rebuilds a consultation from persisted state.
 // It does not apply validation rules.
 func ReconstituteConsultation(
-	id, appointmentID, patientID, professionalID int64,
+	id int64,
+	appointmentID, patientID, professionalID string,
 	status string,
 	completedAt *time.Time,
 	createdAt, updatedAt time.Time,
@@ -70,8 +73,6 @@ func ReconstituteConsultation(
 }
 
 // Complete transitions the consultation to COMPLETED.
-// It is idempotent-safe at the aggregate level: completing an already
-// completed consultation returns ErrConsultationAlreadyCompleted.
 func (c *Consultation) Complete() error {
 	if c.Status == StatusCompleted {
 		return exception.ErrConsultationAlreadyCompleted
@@ -84,10 +85,30 @@ func (c *Consultation) Complete() error {
 }
 
 // EnsureInProgress returns an error if the consultation is not active.
-// Used by use cases that must reject modifications on completed consultations.
 func (c *Consultation) EnsureInProgress() error {
 	if c.Status != StatusInProgress {
 		return errors.New("consultation is not in progress")
 	}
 	return nil
+}
+
+// isUUID validates the canonical 8-4-4-4-12 UUID format (any case).
+// Shared by the model package; no external dependency needed.
+func isUUID(s string) bool {
+	if len(s) != 36 {
+		return false
+	}
+	for i, c := range s {
+		switch i {
+		case 8, 13, 18, 23:
+			if c != '-' {
+				return false
+			}
+		default:
+			if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
+				return false
+			}
+		}
+	}
+	return true
 }
