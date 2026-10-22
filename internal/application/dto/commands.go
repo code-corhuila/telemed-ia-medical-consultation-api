@@ -12,7 +12,8 @@ type RecordAttentionCommand struct {
 }
 
 // GeneratePostSummaryCommand is the input for the GeneratePostSummary use case.
+// PreconsultationSummaryID is a UUID string (owned by agent-service).
 type GeneratePostSummaryCommand struct {
 	ConsultationID           int64
-	PreconsultationSummaryID *int64
+	PreconsultationSummaryID *string
 }

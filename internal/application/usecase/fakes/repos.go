@@ -40,7 +40,7 @@ func (r *ConsultationRepo) FindByID(_ context.Context, id int64) (*model.Consult
 	return nil, nil
 }
 
-func (r *ConsultationRepo) FindByAppointmentID(_ context.Context, appointmentID int64) (*model.Consultation, error) {
+func (r *ConsultationRepo) FindByAppointmentID(_ context.Context, appointmentID string) (*model.Consultation, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	for _, c := range r.data {

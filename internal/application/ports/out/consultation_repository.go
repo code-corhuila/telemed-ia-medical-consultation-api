@@ -11,6 +11,6 @@ import (
 type ConsultationRepositoryPort interface {
 	Save(ctx context.Context, c *model.Consultation) (*model.Consultation, error)
 	FindByID(ctx context.Context, id int64) (*model.Consultation, error)
-	FindByAppointmentID(ctx context.Context, appointmentID int64) (*model.Consultation, error)
+	FindByAppointmentID(ctx context.Context, appointmentID string) (*model.Consultation, error)
 	Complete(ctx context.Context, id int64) (*model.Consultation, error)
 }
