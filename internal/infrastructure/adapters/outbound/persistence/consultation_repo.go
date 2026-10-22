@@ -44,7 +44,7 @@ func (r *ConsultationRepo) FindByID(ctx context.Context, id int64) (*model.Consu
 	return scanConsultation(row)
 }
 
-func (r *ConsultationRepo) FindByAppointmentID(ctx context.Context, appointmentID int64) (*model.Consultation, error) {
+func (r *ConsultationRepo) FindByAppointmentID(ctx context.Context, appointmentID string) (*model.Consultation, error) {
 	q := `SELECT ` + consultationColumns + ` FROM consultations WHERE appointment_id = $1 AND deleted_at IS NULL`
 	row := r.pool.QueryRow(ctx, q, appointmentID)
 	return scanConsultation(row)
