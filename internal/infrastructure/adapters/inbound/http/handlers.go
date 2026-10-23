@@ -1,6 +1,7 @@
 package http
 
 import (
+	"encoding/json"
 	"errors"
 	nethttp "net/http"
 	"regexp"
@@ -63,10 +64,33 @@ func (h *Handlers) RecordAttention(w nethttp.ResponseWriter, r *nethttp.Request)
 	}
 	body.ConsultationID = id
 
+	claims := FromContext(r.Context())
+	if claims == nil || claims.Role != "PROFESSIONAL" {
+		WriteError(w, nethttp.StatusForbidden, "FORBIDDEN", "only professionals can record attention", trace)
+		return
+	}
+
+	c, err := h.consultations.FindByID(r.Context(), body.ConsultationID)
+	if err != nil || c == nil {
+		WriteError(w, nethttp.StatusNotFound, "NOT_FOUND", "consultation not found", trace)
+		return
+	}
+	if c.ProfessionalID != claims.Subject {
+		WriteError(w, nethttp.StatusForbidden, "FORBIDDEN", "you are not the assigned professional", trace)
+		return
+	}
+
+	if len(body.FollowUp) > 0 && string(body.FollowUp) != "null" {
+		var obj map[string]interface{}
+		if err := json.Unmarshal(body.FollowUp, &obj); err != nil {
+			WriteError(w, nethttp.StatusBadRequest, "INVALID_PAYLOAD", "followUp must be a JSON object", trace)
+			return
+		}
+	}
 	resp, err := h.recordAttention.Execute(r.Context(), body)
 	if err != nil {
 		status, code := mapError(err)
-		WriteError(w, status, code, err.Error(), trace)
+		WriteError(w, status, code, safeErrorMessage(err, status), trace)
 		return
 	}
 	WriteData(w, nethttp.StatusCreated, resp)
@@ -86,7 +110,7 @@ func (h *Handlers) GetAttention(w nethttp.ResponseWriter, r *nethttp.Request) {
 	resp, err := h.getAttention.Execute(r.Context(), id)
 	if err != nil {
 		status, code := mapError(err)
-		WriteError(w, status, code, err.Error(), trace)
+		WriteError(w, status, code, safeErrorMessage(err, status), trace)
 		return
 	}
 
@@ -100,7 +124,7 @@ func (h *Handlers) GetAttention(w nethttp.ResponseWriter, r *nethttp.Request) {
 		WriteData(w, nethttp.StatusOK, resp)
 		return
 	}
-	
+
 	c, err := h.consultations.FindByID(r.Context(), resp.ConsultationID)
 	if err == nil && c != nil {
 		if claims.Role == "PATIENT" && c.PatientID == claims.Subject {
@@ -112,7 +136,7 @@ func (h *Handlers) GetAttention(w nethttp.ResponseWriter, r *nethttp.Request) {
 			return
 		}
 	}
-	
+
 	WriteError(w, nethttp.StatusForbidden, "FORBIDDEN", "insufficient permissions", trace)
 }
 
@@ -130,7 +154,7 @@ func (h *Handlers) GetPostSummary(w nethttp.ResponseWriter, r *nethttp.Request) 
 	resp, err := h.getPostSummary.Execute(r.Context(), id)
 	if err != nil {
 		status, code := mapError(err)
-		WriteError(w, status, code, err.Error(), trace)
+		WriteError(w, status, code, safeErrorMessage(err, status), trace)
 		return
 	}
 
@@ -144,7 +168,7 @@ func (h *Handlers) GetPostSummary(w nethttp.ResponseWriter, r *nethttp.Request) 
 		WriteData(w, nethttp.StatusOK, resp)
 		return
 	}
-	
+
 	c, err := h.consultations.FindByID(r.Context(), resp.ConsultationID)
 	if err == nil && c != nil {
 		if claims.Role == "PATIENT" && c.PatientID == claims.Subject {
@@ -156,7 +180,7 @@ func (h *Handlers) GetPostSummary(w nethttp.ResponseWriter, r *nethttp.Request) 
 			return
 		}
 	}
-	
+
 	WriteError(w, nethttp.StatusForbidden, "FORBIDDEN", "insufficient permissions", trace)
 }
 
@@ -178,10 +202,26 @@ func (h *Handlers) GeneratePostSummary(w nethttp.ResponseWriter, r *nethttp.Requ
 	}
 	body.ConsultationID = id
 
+	claims := FromContext(r.Context())
+	if claims == nil || claims.Role != "PROFESSIONAL" {
+		WriteError(w, nethttp.StatusForbidden, "FORBIDDEN", "only professionals can generate post-summaries", trace)
+		return
+	}
+
+	c, err := h.consultations.FindByID(r.Context(), body.ConsultationID)
+	if err != nil || c == nil {
+		WriteError(w, nethttp.StatusNotFound, "NOT_FOUND", "consultation not found", trace)
+		return
+	}
+	if c.ProfessionalID != claims.Subject {
+		WriteError(w, nethttp.StatusForbidden, "FORBIDDEN", "you are not the assigned professional", trace)
+		return
+	}
+
 	resp, err := h.generatePostSumm.Execute(r.Context(), body)
 	if err != nil {
 		status, code := mapError(err)
-		WriteError(w, status, code, err.Error(), trace)
+		WriteError(w, status, code, safeErrorMessage(err, status), trace)
 		return
 	}
 	WriteData(w, nethttp.StatusCreated, resp)
@@ -196,4 +236,11 @@ func pathUUID(r *nethttp.Request) (string, error) {
 		return "", errors.New("invalid id")
 	}
 	return raw, nil
+}
+
+func safeErrorMessage(err error, status int) string {
+	if status == nethttp.StatusInternalServerError {
+		return "An unexpected error occurred. Please contact support."
+	}
+	return err.Error()
 }

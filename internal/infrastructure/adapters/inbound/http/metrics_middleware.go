@@ -24,9 +24,9 @@ func MetricsMiddleware(next nethttp.Handler) nethttp.Handler {
 	return nethttp.HandlerFunc(func(w nethttp.ResponseWriter, r *nethttp.Request) {
 		start := time.Now()
 		rec := &statusRecorder{ResponseWriter: w, status: 200}
-		
+
 		next.ServeHTTP(rec, r)
-		
+
 		duration := time.Since(start).Seconds()
 		statusStr := strconv.Itoa(rec.status)
 
