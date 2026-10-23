@@ -1,6 +1,9 @@
 package dto
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 // AttentionSummaryResponse is what the API returns for an attention summary.
 // No cross-domain UUID fields.
@@ -12,7 +15,7 @@ type AttentionSummaryResponse struct {
 	Medications     []MedicationDTO `json:"medications"`
 	Observations    *string         `json:"observations,omitempty"`
 	Referral        *string         `json:"referral,omitempty"`
-	FollowUp        *string         `json:"followUp,omitempty"`
+	FollowUp        json.RawMessage `json:"followUp,omitempty"`
 	CreatedAt       time.Time       `json:"createdAt"`
 	UpdatedAt       time.Time       `json:"updatedAt"`
 }

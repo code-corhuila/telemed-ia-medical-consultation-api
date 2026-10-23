@@ -7,6 +7,7 @@ import (
 
 	"github.com/code-corhuila/telemed-ia-medical-consultation-api/internal/application/dto"
 	"github.com/code-corhuila/telemed-ia-medical-consultation-api/internal/application/ports/in"
+	"github.com/code-corhuila/telemed-ia-medical-consultation-api/internal/application/ports/out"
 )
 
 // Handlers holds the use cases the router invokes.
@@ -15,6 +16,7 @@ type Handlers struct {
 	getAttention     in.GetAttentionPort
 	getPostSummary   in.GetPostSummaryPort
 	generatePostSumm in.GeneratePostSummaryPort
+	consultations    out.ConsultationRepositoryPort
 }
 
 // NewHandlers wires the use cases.
@@ -23,12 +25,14 @@ func NewHandlers(
 	getAttention in.GetAttentionPort,
 	getPostSummary in.GetPostSummaryPort,
 	generatePostSumm in.GeneratePostSummaryPort,
+	consultations out.ConsultationRepositoryPort,
 ) *Handlers {
 	return &Handlers{
 		recordAttention:  recordAttention,
 		getAttention:     getAttention,
 		getPostSummary:   getPostSummary,
 		generatePostSumm: generatePostSumm,
+		consultations:    consultations,
 	}
 }
 
@@ -85,7 +89,31 @@ func (h *Handlers) GetAttention(w nethttp.ResponseWriter, r *nethttp.Request) {
 		WriteError(w, status, code, err.Error(), trace)
 		return
 	}
-	WriteData(w, nethttp.StatusOK, resp)
+
+	// RBAC Check
+	claims := FromContext(r.Context())
+	if claims == nil {
+		WriteError(w, nethttp.StatusUnauthorized, "UNAUTHORIZED", "missing claims", trace)
+		return
+	}
+	if claims.Role == "SERVICE" && claims.Subject == "document-generation" {
+		WriteData(w, nethttp.StatusOK, resp)
+		return
+	}
+	
+	c, err := h.consultations.FindByID(r.Context(), resp.ConsultationID)
+	if err == nil && c != nil {
+		if claims.Role == "PATIENT" && c.PatientID == claims.Subject {
+			WriteData(w, nethttp.StatusOK, resp)
+			return
+		}
+		if claims.Role == "PROFESSIONAL" && c.ProfessionalID == claims.Subject {
+			WriteData(w, nethttp.StatusOK, resp)
+			return
+		}
+	}
+	
+	WriteError(w, nethttp.StatusForbidden, "FORBIDDEN", "insufficient permissions", trace)
 }
 
 // GetPostSummary handles GET /api/post-summaries/{id}
@@ -105,7 +133,31 @@ func (h *Handlers) GetPostSummary(w nethttp.ResponseWriter, r *nethttp.Request) 
 		WriteError(w, status, code, err.Error(), trace)
 		return
 	}
-	WriteData(w, nethttp.StatusOK, resp)
+
+	// RBAC Check
+	claims := FromContext(r.Context())
+	if claims == nil {
+		WriteError(w, nethttp.StatusUnauthorized, "UNAUTHORIZED", "missing claims", trace)
+		return
+	}
+	if claims.Role == "SERVICE" && claims.Subject == "document-generation" {
+		WriteData(w, nethttp.StatusOK, resp)
+		return
+	}
+	
+	c, err := h.consultations.FindByID(r.Context(), resp.ConsultationID)
+	if err == nil && c != nil {
+		if claims.Role == "PATIENT" && c.PatientID == claims.Subject {
+			WriteData(w, nethttp.StatusOK, resp)
+			return
+		}
+		if claims.Role == "PROFESSIONAL" && c.ProfessionalID == claims.Subject {
+			WriteData(w, nethttp.StatusOK, resp)
+			return
+		}
+	}
+	
+	WriteError(w, nethttp.StatusForbidden, "FORBIDDEN", "insufficient permissions", trace)
 }
 
 // GeneratePostSummary handles POST /api/consultations/{id}/post-summary
