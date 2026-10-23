@@ -24,7 +24,8 @@ func mapError(err error) (int, string) {
 		return nethttp.StatusBadRequest, "INVALID_PAYLOAD"
 
 	case errors.Is(err, exception.ErrConsultationAlreadyCompleted),
-		errors.Is(err, exception.ErrConsultationNotCompleted):
+		errors.Is(err, exception.ErrConsultationNotCompleted),
+		errors.Is(err, exception.ErrAttentionAlreadyExists):
 		return nethttp.StatusConflict, "CONFLICT"
 
 	default:

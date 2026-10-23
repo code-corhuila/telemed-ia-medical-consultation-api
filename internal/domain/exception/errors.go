@@ -40,3 +40,5 @@ var (
 	// to perform the requested operation on the resource.
 	ErrUnauthorized = errors.New("unauthorized")
 )
+
+var ErrAttentionAlreadyExists = errors.New("attention already exists for this consultation")
