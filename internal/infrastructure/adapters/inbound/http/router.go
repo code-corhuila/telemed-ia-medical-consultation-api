@@ -2,6 +2,7 @@ package http
 
 import (
 	nethttp "net/http"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 // Router wires the HTTP routes and the middleware chain.
@@ -29,6 +30,7 @@ func NewRouter(handlers *Handlers, jwtPublicKeyPEM string) *Router {
 // Idempotency-Key header.
 func (r *Router) Handler() nethttp.Handler {
 	r.mux.HandleFunc("GET /health", r.handlers.Health)
+	r.mux.Handle("GET /metrics", promhttp.Handler())
 
 	protected := nethttp.NewServeMux()
 	protected.HandleFunc("POST /api/consultations/{id}/attention", r.handlers.RecordAttention)
@@ -43,5 +45,5 @@ func (r *Router) Handler() nethttp.Handler {
 
 	r.mux.Handle("/api/", wrapped)
 
-	return Chain(r.mux, Correlation)
+	return Chain(r.mux, Correlation, MetricsMiddleware)
 }
