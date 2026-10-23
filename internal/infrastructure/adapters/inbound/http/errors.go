@@ -25,7 +25,8 @@ func mapError(err error) (int, string) {
 
 	case errors.Is(err, exception.ErrConsultationAlreadyCompleted),
 		errors.Is(err, exception.ErrConsultationNotCompleted),
-		errors.Is(err, exception.ErrAttentionAlreadyExists):
+		errors.Is(err, exception.ErrAttentionAlreadyExists),
+		errors.Is(err, exception.ErrPostSummaryAlreadyExists):
 		return nethttp.StatusConflict, "CONFLICT"
 
 	default:

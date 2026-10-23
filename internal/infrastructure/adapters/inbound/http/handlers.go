@@ -3,6 +3,7 @@ package http
 import (
 	"encoding/json"
 	"errors"
+	"log"
 	nethttp "net/http"
 	"regexp"
 
@@ -90,6 +91,8 @@ func (h *Handlers) RecordAttention(w nethttp.ResponseWriter, r *nethttp.Request)
 	resp, err := h.recordAttention.Execute(r.Context(), body)
 	if err != nil {
 		status, code := mapError(err)
+		log.Printf("[%s] ERROR: %v", trace, err)
+
 		WriteError(w, status, code, safeErrorMessage(err, status), trace)
 		return
 	}
@@ -110,6 +113,8 @@ func (h *Handlers) GetAttention(w nethttp.ResponseWriter, r *nethttp.Request) {
 	resp, err := h.getAttention.Execute(r.Context(), id)
 	if err != nil {
 		status, code := mapError(err)
+		log.Printf("[%s] ERROR: %v", trace, err)
+
 		WriteError(w, status, code, safeErrorMessage(err, status), trace)
 		return
 	}
@@ -154,6 +159,8 @@ func (h *Handlers) GetPostSummary(w nethttp.ResponseWriter, r *nethttp.Request) 
 	resp, err := h.getPostSummary.Execute(r.Context(), id)
 	if err != nil {
 		status, code := mapError(err)
+		log.Printf("[%s] ERROR: %v", trace, err)
+
 		WriteError(w, status, code, safeErrorMessage(err, status), trace)
 		return
 	}
@@ -221,6 +228,8 @@ func (h *Handlers) GeneratePostSummary(w nethttp.ResponseWriter, r *nethttp.Requ
 	resp, err := h.generatePostSumm.Execute(r.Context(), body)
 	if err != nil {
 		status, code := mapError(err)
+		log.Printf("[%s] ERROR: %v", trace, err)
+
 		WriteError(w, status, code, safeErrorMessage(err, status), trace)
 		return
 	}

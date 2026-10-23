@@ -8,6 +8,7 @@ import (
 	"github.com/code-corhuila/telemed-ia-medical-consultation-api/internal/application/usecase"
 	"github.com/code-corhuila/telemed-ia-medical-consultation-api/internal/application/usecase/fakes"
 	"github.com/code-corhuila/telemed-ia-medical-consultation-api/internal/domain/exception"
+	"github.com/code-corhuila/telemed-ia-medical-consultation-api/internal/domain/model"
 )
 
 func TestRecordAttention_RequiresConsultation(t *testing.T) {
@@ -55,5 +56,25 @@ func TestRecordAttention_HappyPath(t *testing.T) {
 	}
 	if resp == nil || resp.ConsultationID != uuidFor(1) {
 		t.Fatalf("unexpected response: %+v", resp)
+	}
+}
+
+func TestRecordAttention_RejectsCompletedConsultation(t *testing.T) {
+	cs := fakes.NewConsultationRepo()
+	uc := usecase.NewRecordAttention(cs, fakes.NewAttentionRepo())
+	ctx := context.Background()
+
+	c, _ := model.NewConsultation(uuidFor(1), uuidFor(2), uuidFor(3))
+	c.ID = uuidFor(1)
+	_ = c.Complete() // La consulta ya está completada
+	_, _ = cs.Save(ctx, c)
+
+	_, err := uc.Execute(ctx, dto.RecordAttentionCommand{
+		ConsultationID:  uuidFor(1),
+		Recommendations: "Rest",
+	})
+
+	if err != exception.ErrConsultationAlreadyCompleted {
+		t.Fatalf("expected ErrConsultationAlreadyCompleted, got %v", err)
 	}
 }

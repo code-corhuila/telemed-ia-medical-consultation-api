@@ -42,3 +42,5 @@ var (
 )
 
 var ErrAttentionAlreadyExists = errors.New("attention already exists for this consultation")
+
+var ErrPostSummaryAlreadyExists = errors.New("post summary already exists for this consultation")
