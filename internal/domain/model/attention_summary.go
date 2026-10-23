@@ -13,8 +13,8 @@ import (
 //   - Only an authenticated PROFESSIONAL may create or modify it.
 //   - The Intelligent Agent must never write to it.
 type AttentionSummary struct {
-	ID              int64                   `json:"id"`
-	ConsultationID  int64                   `json:"consultationId"`
+	ID              string                   `json:"id"`
+	ConsultationID  string                   `json:"consultationId"`
 	Diagnosis       *string                 `json:"diagnosis,omitempty"`
 	Recommendations string                  `json:"recommendations"`
 	Medications     []MedicationInstruction `json:"medications"`
@@ -34,13 +34,13 @@ type AttentionSummary struct {
 //
 // The DB stores medications as JSONB; nil is not allowed, [] is.
 func NewAttentionSummary(
-	consultationID int64,
+	consultationID string,
 	diagnosis, recommendations string,
 	medications []MedicationInstruction,
 	observations, referral, followUp *string,
 ) (*AttentionSummary, error) {
-	if consultationID <= 0 {
-		return nil, errors.New("consultationID must be positive")
+	if !isUUID(consultationID) {
+		return nil, errors.New("consultationID must be a UUID")
 	}
 	rec := trimOrEmpty(recommendations)
 	if rec == "" {
