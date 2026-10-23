@@ -14,14 +14,14 @@ import (
 //   - Only an authenticated PROFESSIONAL may create or modify it.
 //   - The Intelligent Agent must never write to it.
 type AttentionSummary struct {
-	ID              string                   `json:"id"`
-	ConsultationID  string                   `json:"consultationId"`
+	ID              string                  `json:"id"`
+	ConsultationID  string                  `json:"consultationId"`
 	Diagnosis       *string                 `json:"diagnosis,omitempty"`
 	Recommendations string                  `json:"recommendations"`
 	Medications     []MedicationInstruction `json:"medications"`
 	Observations    *string                 `json:"observations,omitempty"`
 	Referral        *string                 `json:"referral,omitempty"`
-	FollowUp        json.RawMessage                 `json:"followUp,omitempty"`
+	FollowUp        json.RawMessage         `json:"followUp,omitempty"`
 	CreatedAt       time.Time               `json:"createdAt"`
 	UpdatedAt       time.Time               `json:"updatedAt"`
 }

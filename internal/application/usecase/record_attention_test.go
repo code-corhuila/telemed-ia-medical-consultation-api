@@ -44,7 +44,7 @@ func TestRecordAttention_HappyPath(t *testing.T) {
 	}
 
 	resp, err := uc.Execute(ctx, dto.RecordAttentionCommand{
-		ConsultationID: uuidFor(1),
+		ConsultationID:  uuidFor(1),
 		Recommendations: "Rest and hydration",
 		Medications: []dto.MedicationDTO{
 			{Name: "Paracetamol"},

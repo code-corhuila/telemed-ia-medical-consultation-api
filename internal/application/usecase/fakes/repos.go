@@ -88,6 +88,10 @@ func (r *AttentionRepo) Save(_ context.Context, s *model.AttentionSummary) (*mod
 	return &cp, nil
 }
 
+func (r *AttentionRepo) SaveAndComplete(_ context.Context, s *model.AttentionSummary) (*model.AttentionSummary, error) {
+	return r.Save(context.Background(), s)
+}
+
 func (r *AttentionRepo) FindByID(_ context.Context, id string) (*model.AttentionSummary, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
