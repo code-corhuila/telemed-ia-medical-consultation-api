@@ -25,7 +25,7 @@ func newTestRouter(t *testing.T) (*adapter.Router, *fakes.ConsultationRepo, *fak
 	getPost := usecase.NewGetPostSummary(ps)
 	genPost := usecase.NewGeneratePostSummary(cs, as, ps)
 
-	h := adapter.NewHandlers(record, getAtt, getPost, genPost)
+	h := adapter.NewHandlers(record, getAtt, getPost, genPost, nil)
 	// Dummy PEM is fine because we never reach the JWT decode for these tests
 	// (they either use a valid test token injector or hit /health).
 	r := adapter.NewRouter(h, "-----BEGIN PUBLIC KEY-----\nFAKE\n-----END PUBLIC KEY-----")

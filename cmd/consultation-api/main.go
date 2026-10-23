@@ -50,7 +50,7 @@ func main() {
 	generatePostSummary := usecase.NewGeneratePostSummary(consultationRepo, attentionRepo, postSummaryRepo)
 
 	// ---------- inbound ----------
-	handlers := inhttp.NewHandlers(recordAttention, getAttention, getPostSummary, generatePostSummary)
+	handlers := inhttp.NewHandlers(recordAttention, getAttention, getPostSummary, generatePostSummary, consultationRepo)
 	router := inhttp.NewRouter(handlers, cfg.JWTPublicKey)
 
 	// ---------- http server ----------

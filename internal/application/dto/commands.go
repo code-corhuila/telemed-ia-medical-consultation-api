@@ -1,5 +1,7 @@
 package dto
 
+import "encoding/json"
+
 // RecordAttentionCommand is the input for the RecordAttention use case.
 type RecordAttentionCommand struct {
 	ConsultationID  string
@@ -8,7 +10,7 @@ type RecordAttentionCommand struct {
 	Medications     []MedicationDTO
 	Observations    *string
 	Referral        *string
-	FollowUp        *string
+	FollowUp        json.RawMessage
 }
 
 // GeneratePostSummaryCommand is the input for the GeneratePostSummary use case.

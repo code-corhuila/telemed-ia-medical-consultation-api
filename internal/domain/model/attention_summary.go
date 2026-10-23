@@ -1,6 +1,7 @@
 package model
 
 import (
+	"encoding/json"
 	"errors"
 	"time"
 )
@@ -20,7 +21,7 @@ type AttentionSummary struct {
 	Medications     []MedicationInstruction `json:"medications"`
 	Observations    *string                 `json:"observations,omitempty"`
 	Referral        *string                 `json:"referral,omitempty"`
-	FollowUp        *string                 `json:"followUp,omitempty"`
+	FollowUp        json.RawMessage                 `json:"followUp,omitempty"`
 	CreatedAt       time.Time               `json:"createdAt"`
 	UpdatedAt       time.Time               `json:"updatedAt"`
 }
@@ -37,7 +38,7 @@ func NewAttentionSummary(
 	consultationID string,
 	diagnosis, recommendations string,
 	medications []MedicationInstruction,
-	observations, referral, followUp *string,
+	observations, referral *string, followUp json.RawMessage,
 ) (*AttentionSummary, error) {
 	if !isUUID(consultationID) {
 		return nil, errors.New("consultationID must be a UUID")
@@ -57,7 +58,7 @@ func NewAttentionSummary(
 		Medications:     medications,
 		Observations:    clean(observations),
 		Referral:        clean(referral),
-		FollowUp:        clean(followUp),
+		FollowUp:        followUp,
 		CreatedAt:       now,
 		UpdatedAt:       now,
 	}, nil
