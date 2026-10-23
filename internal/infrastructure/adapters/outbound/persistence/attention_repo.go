@@ -6,6 +6,8 @@ import (
 	"errors"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/code-corhuila/telemed-ia-medical-consultation-api/internal/domain/exception"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/code-corhuila/telemed-ia-medical-consultation-api/internal/domain/model"
@@ -44,7 +46,16 @@ func (r *AttentionRepo) Save(ctx context.Context, s *model.AttentionSummary) (*m
 		s.ConsultationID, s.Diagnosis, s.Recommendations, meds,
 		s.Observations, s.Referral, s.FollowUp, s.CreatedAt, s.UpdatedAt,
 	)
-	return scanAttention(row)
+	
+	saved, err := scanAttention(row)
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return nil, exception.ErrAttentionAlreadyExists
+		}
+		return nil, err
+	}
+	return saved, nil
 }
 
 func (r *AttentionRepo) FindByID(ctx context.Context, id string) (*model.AttentionSummary, error) {
