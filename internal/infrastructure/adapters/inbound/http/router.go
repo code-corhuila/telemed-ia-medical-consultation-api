@@ -1,8 +1,8 @@
 package http
 
 import (
-	nethttp "net/http"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	nethttp "net/http"
 )
 
 // Router wires the HTTP routes and the middleware chain.

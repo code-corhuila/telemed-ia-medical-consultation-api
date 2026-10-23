@@ -11,7 +11,7 @@ var (
 	HttpDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
 		Name:    "medical_consultation_http_duration_seconds",
 		Help:    "Duration of HTTP requests in seconds",
-		Buckets: []float64{0.1, 0.25, 0.5, 1, 2.5}, 
+		Buckets: []float64{0.1, 0.25, 0.5, 1, 2.5},
 	}, []string{"path", "method", "status"})
 
 	// HttpRequestsTotal cuenta el tráfico y errores (Golden Signal: Traffic & Errors)
