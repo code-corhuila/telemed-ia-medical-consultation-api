@@ -12,7 +12,7 @@ import (
 
 func TestRecordAttention_RequiresConsultation(t *testing.T) {
 	uc := usecase.NewRecordAttention(fakes.NewConsultationRepo(), fakes.NewAttentionRepo())
-	_, err := uc.Execute(context.Background(), dto.RecordAttentionCommand{ConsultationID: 99})
+	_, err := uc.Execute(context.Background(), dto.RecordAttentionCommand{ConsultationID: uuidFor(99)})
 	if err != exception.ErrConsultationNotFound {
 		t.Fatalf("expected ErrConsultationNotFound, got %v", err)
 	}
@@ -23,11 +23,11 @@ func TestRecordAttention_RequiresRecommendations(t *testing.T) {
 	uc := usecase.NewRecordAttention(cs, fakes.NewAttentionRepo())
 
 	ctx := context.Background()
-	if err := seedConsultation(ctx, cs, 1); err != nil {
+	if err := seedConsultation(ctx, cs, uuidFor(1)); err != nil {
 		t.Fatalf("seed failed: %v", err)
 	}
 
-	_, err := uc.Execute(ctx, dto.RecordAttentionCommand{ConsultationID: 1, Recommendations: ""})
+	_, err := uc.Execute(ctx, dto.RecordAttentionCommand{ConsultationID: uuidFor(1), Recommendations: ""})
 	if err != exception.ErrInvalidAttentionSummary {
 		t.Fatalf("expected ErrInvalidAttentionSummary, got %v", err)
 	}
@@ -39,12 +39,12 @@ func TestRecordAttention_HappyPath(t *testing.T) {
 	uc := usecase.NewRecordAttention(cs, as)
 
 	ctx := context.Background()
-	if err := seedConsultation(ctx, cs, 1); err != nil {
+	if err := seedConsultation(ctx, cs, uuidFor(1)); err != nil {
 		t.Fatalf("seed failed: %v", err)
 	}
 
 	resp, err := uc.Execute(ctx, dto.RecordAttentionCommand{
-		ConsultationID:  1,
+		ConsultationID: uuidFor(1),
 		Recommendations: "Rest and hydration",
 		Medications: []dto.MedicationDTO{
 			{Name: "Paracetamol"},
@@ -53,7 +53,7 @@ func TestRecordAttention_HappyPath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if resp == nil || resp.ConsultationID != 1 {
+	if resp == nil || resp.ConsultationID != uuidFor(1) {
 		t.Fatalf("unexpected response: %+v", resp)
 	}
 }

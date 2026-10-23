@@ -47,13 +47,13 @@ func (r *AttentionRepo) Save(ctx context.Context, s *model.AttentionSummary) (*m
 	return scanAttention(row)
 }
 
-func (r *AttentionRepo) FindByID(ctx context.Context, id int64) (*model.AttentionSummary, error) {
+func (r *AttentionRepo) FindByID(ctx context.Context, id string) (*model.AttentionSummary, error) {
 	q := `SELECT ` + attentionColumns + ` FROM attention_summaries WHERE id = $1`
 	row := r.pool.QueryRow(ctx, q, id)
 	return scanAttention(row)
 }
 
-func (r *AttentionRepo) FindByConsultationID(ctx context.Context, consultationID int64) (*model.AttentionSummary, error) {
+func (r *AttentionRepo) FindByConsultationID(ctx context.Context, consultationID string) (*model.AttentionSummary, error) {
 	q := `SELECT ` + attentionColumns + ` FROM attention_summaries WHERE consultation_id = $1`
 	row := r.pool.QueryRow(ctx, q, consultationID)
 	return scanAttention(row)

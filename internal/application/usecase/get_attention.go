@@ -17,8 +17,8 @@ func NewGetAttention(summaries out.AttentionSummaryRepositoryPort) *GetAttention
 	return &GetAttention{summaries: summaries}
 }
 
-func (uc *GetAttention) Execute(ctx context.Context, id int64) (*dto.AttentionSummaryResponse, error) {
-	if id <= 0 {
+func (uc *GetAttention) Execute(ctx context.Context, id string) (*dto.AttentionSummaryResponse, error) {
+	if id == "" {
 		return nil, exception.ErrAttentionSummaryNotFound
 	}
 	s, err := uc.summaries.FindByID(ctx, id)

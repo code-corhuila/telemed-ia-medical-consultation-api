@@ -18,8 +18,8 @@ func NewGetPostSummary(postSummaries out.PostSummaryRepositoryPort) *GetPostSumm
 	return &GetPostSummary{postSummaries: postSummaries}
 }
 
-func (uc *GetPostSummary) Execute(ctx context.Context, id int64) (*dto.PostSummaryResponse, error) {
-	if id <= 0 {
+func (uc *GetPostSummary) Execute(ctx context.Context, id string) (*dto.PostSummaryResponse, error) {
+	if id == "" {
 		return nil, exception.ErrPostSummaryNotFound
 	}
 	s, err := uc.postSummaries.FindByID(ctx, id)

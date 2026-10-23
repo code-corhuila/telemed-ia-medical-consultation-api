@@ -3,21 +3,21 @@ package model
 import "testing"
 
 func TestNewAttentionSummary_RequiresConsultationID(t *testing.T) {
-	_, err := NewAttentionSummary(0, "", "rest", nil, nil, nil, nil)
+	_, err := NewAttentionSummary("not-a-uuid", "", "rest", nil, nil, nil, nil)
 	if err == nil {
 		t.Fatalf("expected error for zero consultationID")
 	}
 }
 
 func TestNewAttentionSummary_RequiresRecommendations(t *testing.T) {
-	_, err := NewAttentionSummary(1, "", "   ", nil, nil, nil, nil)
+	_, err := NewAttentionSummary("00000000-0000-0000-0000-000000000001", "", "   ", nil, nil, nil, nil)
 	if err == nil {
 		t.Fatalf("expected error for empty recommendations")
 	}
 }
 
 func TestNewAttentionSummary_NormalizesNilMedications(t *testing.T) {
-	s, err := NewAttentionSummary(1, "", "rest", nil, nil, nil, nil)
+	s, err := NewAttentionSummary("00000000-0000-0000-0000-000000000001", "", "rest", nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

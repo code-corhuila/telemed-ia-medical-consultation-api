@@ -14,12 +14,12 @@ import (
 //
 // Cross-domain IDs are UUID strings; internal IDs stay int64.
 type PostSummary struct {
-	ID                       int64     `json:"id"`
-	ConsultationID           int64     `json:"consultationId"`
+	ID                       string    `json:"id"`
+	ConsultationID           string    `json:"consultationId"`
 	AppointmentID            string    `json:"appointmentId"`
 	PatientID                string    `json:"patientId"`
 	PreconsultationSummaryID *string   `json:"preconsultationSummaryId,omitempty"`
-	AttentionSummaryID       *int64    `json:"attentionSummaryId,omitempty"`
+	AttentionSummaryID       *string   `json:"attentionSummaryId,omitempty"`
 	GeneratedAt              time.Time `json:"generatedAt"`
 }
 
@@ -30,13 +30,13 @@ type PostSummary struct {
 //   - preconsultationSummaryID, when present, is a UUID string
 //   - the consultation to be COMPLETED (checked by the caller use case)
 func NewPostSummary(
-	consultationID int64,
+	consultationID string,
 	appointmentID, patientID string,
 	preconsultationSummaryID *string,
-	attentionSummaryID *int64,
+	attentionSummaryID *string,
 ) (*PostSummary, error) {
-	if consultationID <= 0 {
-		return nil, errors.New("consultationID is required")
+	if !isUUID(consultationID) {
+		return nil, errors.New("consultationID must be a UUID")
 	}
 	if !isUUID(appointmentID) || !isUUID(patientID) {
 		return nil, errors.New("appointmentID and patientID must be UUIDs")

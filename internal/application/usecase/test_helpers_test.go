@@ -14,12 +14,11 @@ func uuidFor(seed int64) string {
 	return fmt.Sprintf("00000000-0000-0000-0000-%012d", seed)
 }
 
-func seedConsultation(ctx context.Context, repo *fakes.ConsultationRepo, id int64) error {
-	c, err := model.NewConsultation(uuidFor(id), uuidFor(1), uuidFor(2))
+func seedConsultation(ctx context.Context, repo *fakes.ConsultationRepo, id string) error {
+	c, err := model.NewConsultation(id, uuidFor(1), uuidFor(2))
 	if err != nil {
 		return err
 	}
-	c.ID = id
 	_, err = repo.Save(ctx, c)
 	return err
 }
