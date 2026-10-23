@@ -3,7 +3,7 @@ package http
 import (
 	"errors"
 	nethttp "net/http"
-	"strconv"
+	"regexp"
 
 	"github.com/code-corhuila/telemed-ia-medical-consultation-api/internal/application/dto"
 	"github.com/code-corhuila/telemed-ia-medical-consultation-api/internal/application/ports/in"
@@ -44,10 +44,10 @@ func (h *Handlers) Health(w nethttp.ResponseWriter, _ *nethttp.Request) {
 func (h *Handlers) RecordAttention(w nethttp.ResponseWriter, r *nethttp.Request) {
 	trace := traceFrom(r.Context())
 
-	id, err := pathID(r)
+	id, err := pathUUID(r)
 	if err != nil {
 		WriteError(w, nethttp.StatusBadRequest, "INVALID_PATH",
-			"consultation id must be a positive integer", trace)
+			"consultation id must be a UUID", trace)
 		return
 	}
 
@@ -72,10 +72,10 @@ func (h *Handlers) RecordAttention(w nethttp.ResponseWriter, r *nethttp.Request)
 func (h *Handlers) GetAttention(w nethttp.ResponseWriter, r *nethttp.Request) {
 	trace := traceFrom(r.Context())
 
-	id, err := pathID(r)
+	id, err := pathUUID(r)
 	if err != nil {
 		WriteError(w, nethttp.StatusBadRequest, "INVALID_PATH",
-			"consultation id must be a positive integer", trace)
+			"consultation id must be a UUID", trace)
 		return
 	}
 
@@ -92,10 +92,10 @@ func (h *Handlers) GetAttention(w nethttp.ResponseWriter, r *nethttp.Request) {
 func (h *Handlers) GetPostSummary(w nethttp.ResponseWriter, r *nethttp.Request) {
 	trace := traceFrom(r.Context())
 
-	id, err := pathID(r)
+	id, err := pathUUID(r)
 	if err != nil {
 		WriteError(w, nethttp.StatusBadRequest, "INVALID_PATH",
-			"post summary id must be a positive integer", trace)
+			"post summary id must be a UUID", trace)
 		return
 	}
 
@@ -112,10 +112,10 @@ func (h *Handlers) GetPostSummary(w nethttp.ResponseWriter, r *nethttp.Request) 
 func (h *Handlers) GeneratePostSummary(w nethttp.ResponseWriter, r *nethttp.Request) {
 	trace := traceFrom(r.Context())
 
-	id, err := pathID(r)
+	id, err := pathUUID(r)
 	if err != nil {
 		WriteError(w, nethttp.StatusBadRequest, "INVALID_PATH",
-			"consultation id must be a positive integer", trace)
+			"consultation id must be a UUID", trace)
 		return
 	}
 
@@ -135,12 +135,13 @@ func (h *Handlers) GeneratePostSummary(w nethttp.ResponseWriter, r *nethttp.Requ
 	WriteData(w, nethttp.StatusCreated, resp)
 }
 
-// pathID extracts {id} from the request path and validates it is positive.
-func pathID(r *nethttp.Request) (int64, error) {
+var uuidPattern = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
+
+// pathUUID extracts {id} from the request path and validates it is a UUID.
+func pathUUID(r *nethttp.Request) (string, error) {
 	raw := r.PathValue("id")
-	id, err := strconv.ParseInt(raw, 10, 64)
-	if err != nil || id <= 0 {
-		return 0, errors.New("invalid id")
+	if !uuidPattern.MatchString(raw) {
+		return "", errors.New("invalid id")
 	}
-	return id, nil
+	return raw, nil
 }
