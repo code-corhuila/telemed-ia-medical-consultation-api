@@ -22,7 +22,7 @@ const (
 //
 // Cross-domain IDs are UUID strings; the internal PK (ID) stays int64.
 type Consultation struct {
-	ID             int64
+	ID             string
 	AppointmentID  string
 	PatientID      string
 	ProfessionalID string
@@ -52,7 +52,7 @@ func NewConsultation(appointmentID, patientID, professionalID string) (*Consulta
 // Reconstitute rebuilds a consultation from persisted state.
 // It does not apply validation rules.
 func ReconstituteConsultation(
-	id int64,
+	id string,
 	appointmentID, patientID, professionalID string,
 	status string,
 	completedAt *time.Time,
