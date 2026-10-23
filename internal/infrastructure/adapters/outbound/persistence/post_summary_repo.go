@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 
+	"github.com/code-corhuila/telemed-ia-medical-consultation-api/internal/domain/exception"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/code-corhuila/telemed-ia-medical-consultation-api/internal/domain/model"
@@ -36,7 +38,15 @@ func (r *PostSummaryRepo) Save(ctx context.Context, s *model.PostSummary) (*mode
 		s.ConsultationID, s.AppointmentID, s.PatientID,
 		s.PreconsultationSummaryID, s.AttentionSummaryID, s.GeneratedAt,
 	)
-	return scanPostSummary(row)
+	saved, err := scanPostSummary(row)
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return nil, exception.ErrPostSummaryAlreadyExists
+		}
+		return nil, err
+	}
+	return saved, nil
 }
 
 func (r *PostSummaryRepo) FindByID(ctx context.Context, id string) (*model.PostSummary, error) {

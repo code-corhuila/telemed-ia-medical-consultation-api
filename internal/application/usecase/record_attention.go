@@ -2,7 +2,6 @@ package usecase
 
 import (
 	"context"
-	"errors"
 
 	"github.com/code-corhuila/telemed-ia-medical-consultation-api/internal/application/dto"
 	"github.com/code-corhuila/telemed-ia-medical-consultation-api/internal/application/ports/out"
@@ -35,7 +34,7 @@ func (uc *RecordAttention) Execute(ctx context.Context, cmd dto.RecordAttentionC
 		return nil, exception.ErrConsultationNotFound
 	}
 	if err := c.EnsureInProgress(); err != nil {
-		return nil, errors.New("consultation is not in progress")
+		return nil, exception.ErrConsultationAlreadyCompleted
 	}
 
 	meds := make([]model.MedicationInstruction, 0, len(cmd.Medications))
