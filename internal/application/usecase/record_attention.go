@@ -24,7 +24,7 @@ func NewRecordAttention(
 }
 
 func (uc *RecordAttention) Execute(ctx context.Context, cmd dto.RecordAttentionCommand) (*dto.AttentionSummaryResponse, error) {
-	if cmd.ConsultationID <= 0 {
+	if cmd.ConsultationID == "" {
 		return nil, exception.ErrInvalidAttentionSummary
 	}
 	c, err := uc.consultations.FindByID(ctx, cmd.ConsultationID)

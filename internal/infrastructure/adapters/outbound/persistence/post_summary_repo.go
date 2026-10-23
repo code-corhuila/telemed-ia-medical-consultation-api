@@ -39,13 +39,13 @@ func (r *PostSummaryRepo) Save(ctx context.Context, s *model.PostSummary) (*mode
 	return scanPostSummary(row)
 }
 
-func (r *PostSummaryRepo) FindByID(ctx context.Context, id int64) (*model.PostSummary, error) {
+func (r *PostSummaryRepo) FindByID(ctx context.Context, id string) (*model.PostSummary, error) {
 	q := `SELECT ` + postSummaryColumns + ` FROM post_summaries WHERE id = $1`
 	row := r.pool.QueryRow(ctx, q, id)
 	return scanPostSummary(row)
 }
 
-func (r *PostSummaryRepo) FindByConsultationID(ctx context.Context, consultationID int64) (*model.PostSummary, error) {
+func (r *PostSummaryRepo) FindByConsultationID(ctx context.Context, consultationID string) (*model.PostSummary, error) {
 	q := `SELECT ` + postSummaryColumns + ` FROM post_summaries WHERE consultation_id = $1`
 	row := r.pool.QueryRow(ctx, q, consultationID)
 	return scanPostSummary(row)

@@ -8,5 +8,5 @@ import (
 
 // GetAttentionPort is the input boundary for reading an attention summary.
 type GetAttentionPort interface {
-	Execute(ctx context.Context, id int64) (*dto.AttentionSummaryResponse, error)
+	Execute(ctx context.Context, id string) (*dto.AttentionSummaryResponse, error)
 }
