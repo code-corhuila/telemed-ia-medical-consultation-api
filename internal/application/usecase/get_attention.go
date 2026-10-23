@@ -21,7 +21,7 @@ func (uc *GetAttention) Execute(ctx context.Context, id string) (*dto.AttentionS
 	if id == "" {
 		return nil, exception.ErrAttentionSummaryNotFound
 	}
-	s, err := uc.summaries.FindByID(ctx, id)
+	s, err := uc.summaries.FindByConsultationID(ctx, id)
 	if err != nil {
 		return nil, err
 	}

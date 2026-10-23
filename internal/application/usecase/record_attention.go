@@ -62,6 +62,13 @@ func (uc *RecordAttention) Execute(ctx context.Context, cmd dto.RecordAttentionC
 	if err != nil {
 		return nil, err
 	}
+
+	// Registrar la atencion completa la consulta
+	_, err = uc.consultations.Complete(ctx, cmd.ConsultationID)
+	if err != nil {
+		return nil, err
+	}
+
 	return toAttentionResponse(saved), nil
 }
 
