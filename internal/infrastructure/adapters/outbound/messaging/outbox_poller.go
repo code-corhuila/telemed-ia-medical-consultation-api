@@ -7,33 +7,64 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 // OutboxPoller es un worker en background que lee la tabla outbox_event
-// y publica los mensajes pendientes.
+// y publica los mensajes pendientes a RabbitMQ.
 type OutboxPoller struct {
-	pool     *pgxpool.Pool
-	interval time.Duration
-	stopCh   chan struct{}
+	pool      *pgxpool.Pool
+	amqpConn  *amqp.Connection
+	amqpChan  *amqp.Channel
+	interval  time.Duration
+	stopCh    chan struct{}
 }
 
-func NewOutboxPoller(pool *pgxpool.Pool) *OutboxPoller {
+func NewOutboxPoller(pool *pgxpool.Pool, rabbitURL string) (*OutboxPoller, error) {
+	conn, err := amqp.Dial(rabbitURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to RabbitMQ: %w", err)
+	}
+
+	ch, err := conn.Channel()
+	if err != nil {
+		conn.Close()
+		return nil, fmt.Errorf("failed to open a channel: %w", err)
+	}
+
+	// Declarar la cola (durable)
+	_, err = ch.QueueDeclare(
+		"post_consultation_summary_generated", // name
+		true,  // durable
+		false, // delete when unused
+		false, // exclusive
+		false, // no-wait
+		nil,   // arguments
+	)
+	if err != nil {
+		ch.Close()
+		conn.Close()
+		return nil, fmt.Errorf("failed to declare a queue: %w", err)
+	}
+
 	return &OutboxPoller{
 		pool:     pool,
+		amqpConn: conn,
+		amqpChan: ch,
 		interval: 5 * time.Second,
 		stopCh:   make(chan struct{}),
-	}
+	}, nil
 }
 
-// Start inicia la goroutine que hace polling.
 func (p *OutboxPoller) Start() {
 	log.Println("OutboxPoller started. Polling every 5 seconds...")
 	go p.loop()
 }
 
-// Stop detiene el worker de forma segura.
 func (p *OutboxPoller) Stop() {
 	close(p.stopCh)
+	p.amqpChan.Close()
+	p.amqpConn.Close()
 }
 
 func (p *OutboxPoller) loop() {
@@ -54,8 +85,6 @@ func (p *OutboxPoller) loop() {
 }
 
 func (p *OutboxPoller) processBatch(ctx context.Context) error {
-	// Usamos FOR UPDATE SKIP LOCKED para evitar que multiples replicas
-	// procesen el mismo evento.
 	const qSelect = `
 		SELECT id, event_type, payload, correlation_id
 		FROM outbox_event
@@ -86,9 +115,24 @@ func (p *OutboxPoller) processBatch(ctx context.Context) error {
 			return err
 		}
 
-		// TODO: Aquí se conectará con RabbitMQ en el siguiente paso
-		log.Printf("[OUTBOX] Event pending to publish: %s (Type: %s)", id, eventType)
+		// Publicar a RabbitMQ
+		err := p.amqpChan.PublishWithContext(ctx,
+			"", // exchange
+			"post_consultation_summary_generated", // routing key (queue name)
+			false, // mandatory
+			false, // immediate
+			amqp.Publishing{
+				ContentType: "application/json",
+				MessageId:   id,
+				Body:        payload,
+			})
 		
+		if err != nil {
+			log.Printf("ERROR: Failed to publish event %s to RabbitMQ: %v", id, err)
+			continue 
+		}
+
+		log.Printf("[OUTBOX] Event published to RabbitMQ: %s (Type: %s)", id, eventType)
 		eventIDs = append(eventIDs, id)
 	}
 
@@ -96,8 +140,6 @@ func (p *OutboxPoller) processBatch(ctx context.Context) error {
 		return nil
 	}
 
-	// Marcar como publicados (temporalmente para que no se dupliquen en la prueba)
-	// En el siguiente paso, si falla RabbitMQ, haremos rollback y se quedarán en PENDING
 	const qUpdate = `UPDATE outbox_event SET status = 'PUBLISHED', published_at = now() WHERE id = ANY($1)`
 	_, err = tx.Exec(ctx, qUpdate, eventIDs)
 	if err != nil {

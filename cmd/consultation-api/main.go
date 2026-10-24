@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"context"
 	"errors"
 	"log/slog"
@@ -54,7 +55,10 @@ func main() {
 	router := inhttp.NewRouter(handlers, cfg.JWTPublicKey)
 
 	// ---------- background workers ----------
-	outboxPoller := messaging.NewOutboxPoller(pool)
+	outboxPoller, err := messaging.NewOutboxPoller(pool, cfg.RabbitMQURL)
+	if err != nil {
+		log.Fatalf("Failed to initialize OutboxPoller: %v", err)
+	}
 	outboxPoller.Start()
 	defer outboxPoller.Stop()
 
