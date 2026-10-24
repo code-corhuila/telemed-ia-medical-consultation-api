@@ -53,6 +53,11 @@ func main() {
 	handlers := inhttp.NewHandlers(recordAttention, getAttention, getPostSummary, generatePostSummary, consultationRepo)
 	router := inhttp.NewRouter(handlers, cfg.JWTPublicKey)
 
+	// ---------- background workers ----------
+	outboxPoller := messaging.NewOutboxPoller(pool)
+	outboxPoller.Start()
+	defer outboxPoller.Stop()
+
 	// ---------- http server ----------
 	srv := &http.Server{
 		Addr:              ":" + cfg.ServerPort,
