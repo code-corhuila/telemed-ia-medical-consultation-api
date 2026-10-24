@@ -1,6 +1,8 @@
 package usecase
 
 import (
+	"encoding/json"
+	"time"
 	"context"
 
 	"github.com/code-corhuila/telemed-ia-medical-consultation-api/internal/application/dto"
@@ -57,7 +59,23 @@ func (uc *GeneratePostSummary) Execute(ctx context.Context, cmd dto.GeneratePost
 	if err != nil {
 		return nil, exception.ErrInvalidPostSummary
 	}
-	saved, err := uc.postSummaries.Save(ctx, ps)
+	// Construir el evento de outbox
+	payload, _ := json.Marshal(map[string]interface{}{
+		"summaryId":      ps.ID,
+		"consultationId": ps.ConsultationID,
+		"patientId":      ps.PatientID,
+	})
+	
+	event := &model.OutboxEvent{
+		EventType:     "PostConsultationSummaryGenerated",
+		Payload:       payload,
+		CorrelationID: "", // Se podría inyectar desde el contexto
+		Status:        "PENDING",
+		CreatedAt:     time.Now().UTC(),
+	}
+
+	// Guardar PostSummary y OutboxEvent en la misma transacción
+	saved, err := uc.postSummaries.SaveWithOutbox(ctx, ps, event)
 	if err != nil {
 		return nil, err
 	}
