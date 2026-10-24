@@ -125,6 +125,10 @@ func NewPostSummaryRepo() *PostSummaryRepo {
 	return &PostSummaryRepo{data: map[string]*model.PostSummary{}, next: 1}
 }
 
+func (r *PostSummaryRepo) SaveWithOutbox(_ context.Context, s *model.PostSummary, _ *model.OutboxEvent) (*model.PostSummary, error) {
+	return r.Save(context.Background(), s)
+}
+
 func (r *PostSummaryRepo) Save(_ context.Context, s *model.PostSummary) (*model.PostSummary, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
