@@ -113,8 +113,8 @@ func (r *PostSummaryRepo) SaveWithOutbox(ctx context.Context, s *model.PostSumma
 	})
 	
 	const qInsertOutbox = `
-		INSERT INTO outbox_event (event_type, payload, status, created_at)
-		VALUES ($1, $2, 'PENDING', now())
+		INSERT INTO outbox_event (event_type, payload, correlation_id, status, created_at)
+		VALUES ($1, $2, '', 'PENDING', now())
 	`
 	_, err = tx.Exec(ctx, qInsertOutbox, "PostConsultationSummaryGenerated", payload)
 	if err != nil {

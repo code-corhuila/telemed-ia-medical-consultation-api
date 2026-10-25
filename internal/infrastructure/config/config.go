@@ -9,6 +9,7 @@ import (
 
 // Config holds every runtime setting of the service.
 type Config struct {
+	RabbitMQURL string
 	ServerPort string
 
 	DBHost     string
@@ -25,7 +26,6 @@ type Config struct {
 	HTTPWriteTimeout      time.Duration
 	HTTPIdleTimeout       time.Duration
 	HTTPShutdownTimeout   time.Duration
-	RabbitMQURL          string
 }
 
 // Load reads settings from the environment and applies safe defaults.
