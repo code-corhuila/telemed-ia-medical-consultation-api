@@ -1,6 +1,7 @@
 package persistence
 
 import (
+	"encoding/json"
 	"context"
 	"errors"
 
@@ -76,7 +77,7 @@ func scanPostSummary(row pgx.Row) (*model.PostSummary, error) {
 	return &s, nil
 }
 
-func (r *PostSummaryRepo) SaveWithOutbox(ctx context.Context, s *model.PostSummary, e *model.OutboxEvent) (*model.PostSummary, error) {
+func (r *PostSummaryRepo) SaveWithOutbox(ctx context.Context, s *model.PostSummary) (*model.PostSummary, error) {
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
 		return nil, err
@@ -104,12 +105,18 @@ func (r *PostSummaryRepo) SaveWithOutbox(ctx context.Context, s *model.PostSumma
 		return nil, err
 	}
 
-	// 2. Insertar OutboxEvent
+	// 2. Construir y insertar OutboxEvent CON EL ID REAL
+	payload, _ := json.Marshal(map[string]interface{}{
+		"summaryId":      saved.ID,
+		"consultationId": saved.ConsultationID,
+		"patientId":      saved.PatientID,
+	})
+	
 	const qInsertOutbox = `
-		INSERT INTO outbox_event (event_type, payload, correlation_id, status, created_at)
-		VALUES ($1, $2, $3, $4, $5)
+		INSERT INTO outbox_event (event_type, payload, status, created_at)
+		VALUES ($1, $2, 'PENDING', now())
 	`
-	_, err = tx.Exec(ctx, qInsertOutbox, e.EventType, e.Payload, e.CorrelationID, e.Status, e.CreatedAt)
+	_, err = tx.Exec(ctx, qInsertOutbox, "PostConsultationSummaryGenerated", payload)
 	if err != nil {
 		return nil, err
 	}
