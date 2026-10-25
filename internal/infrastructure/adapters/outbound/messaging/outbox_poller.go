@@ -16,6 +16,7 @@ type OutboxPoller struct {
 	pool      *pgxpool.Pool
 	amqpConn  *amqp.Connection
 	amqpChan  *amqp.Channel
+	returns   chan amqp.Return
 	interval  time.Duration
 	stopCh    chan struct{}
 }
@@ -49,10 +50,13 @@ func NewOutboxPoller(pool *pgxpool.Pool, rabbitURL string) (*OutboxPoller, error
 		return nil, fmt.Errorf("failed to declare a queue: %w", err)
 	}
 
+	returns := ch.NotifyReturn(make(chan amqp.Return, 1))
+
 	return &OutboxPoller{
 		pool:     pool,
 		amqpConn: conn,
 		amqpChan: ch,
+		returns:  returns,
 		interval: 5 * time.Second,
 		stopCh:   make(chan struct{}),
 	}, nil
@@ -121,7 +125,7 @@ func (p *OutboxPoller) processBatch(ctx context.Context) error {
 		err := p.amqpChan.PublishWithContext(ctx,
 			"consultation.events", // exchange
 			"post-consultation-summary-generated", // routing key
-			false, // mandatory
+			true,  // mandatory: true -> Si no hay cola, rebota
 			false, // immediate
 			amqp.Publishing{
 				ContentType:  "application/json",
@@ -134,6 +138,15 @@ func (p *OutboxPoller) processBatch(ctx context.Context) error {
 		if err != nil {
 			log.Printf("ERROR: Failed to publish event %s to RabbitMQ: %v", id, err)
 			continue 
+		}
+
+		// Esperar un momento para ver si el mensaje rebota (si no hay cola vinculada)
+		select {
+		case r := <-p.returns:
+			log.Printf("WARN: Event %s returned by RabbitMQ (no queue bound): %s", id, r.ReplyText)
+			continue // No lo marcamos como PUBLISHED, se reintentará
+		case <-time.After(500 * time.Millisecond):
+			// El mensaje fue enrutado con éxito a alguna cola
 		}
 
 		log.Printf("[OUTBOX] Event published to RabbitMQ: %s (Type: %s)", id, eventType)
