@@ -33,13 +33,17 @@ func NewOutboxPoller(pool *pgxpool.Pool, rabbitURL string) (*OutboxPoller, error
 	}
 
 	// Declarar la cola (durable)
+	args := amqp.Table{
+		"x-dead-letter-exchange":    "",
+		"x-dead-letter-routing-key": "post_consultation_summary_generated.dlq",
+	}
 	_, err = ch.QueueDeclare(
 		"post_consultation_summary_generated", // name
 		true,  // durable
 		false, // delete when unused
 		false, // exclusive
 		false, // no-wait
-		nil,   // arguments
+		args,  // arguments
 	)
 	if err != nil {
 		ch.Close()
@@ -86,7 +90,7 @@ func (p *OutboxPoller) loop() {
 
 func (p *OutboxPoller) processBatch(ctx context.Context) error {
 	const qSelect = `
-		SELECT id, event_type, payload, correlation_id
+		SELECT id, event_type, payload, COALESCE(correlation_id, '')
 		FROM outbox_event
 		WHERE status = 'PENDING'
 		ORDER BY created_at ASC
