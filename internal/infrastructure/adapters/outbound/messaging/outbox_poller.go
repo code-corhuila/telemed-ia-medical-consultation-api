@@ -33,17 +33,15 @@ func NewOutboxPoller(pool *pgxpool.Pool, rabbitURL string) (*OutboxPoller, error
 	}
 
 	// Declarar la cola (durable)
-	args := amqp.Table{
-		"x-dead-letter-exchange":    "",
-		"x-dead-letter-routing-key": "post_consultation_summary_generated.dlq",
-	}
-	_, err = ch.QueueDeclare(
-		"post_consultation_summary_generated", // name
-		true,  // durable
-		false, // delete when unused
-		false, // exclusive
-		false, // no-wait
-		args,  // arguments
+	// Declarar el Topic Exchange común
+	err = ch.ExchangeDeclare(
+		"consultation.events", // name
+		"topic",               // type
+		true,                  // durable
+		false,                 // auto-deleted
+		false,                 // internal
+		false,                 // no-wait
+		nil,                   // arguments
 	)
 	if err != nil {
 		ch.Close()
@@ -121,14 +119,16 @@ func (p *OutboxPoller) processBatch(ctx context.Context) error {
 
 		// Publicar a RabbitMQ
 		err := p.amqpChan.PublishWithContext(ctx,
-			"", // exchange
-			"post_consultation_summary_generated", // routing key (queue name)
+			"consultation.events", // exchange
+			"post-consultation-summary-generated", // routing key
 			false, // mandatory
 			false, // immediate
 			amqp.Publishing{
-				ContentType: "application/json",
-				MessageId:   id,
-				Body:        payload,
+				ContentType:  "application/json",
+				DeliveryMode: amqp.Persistent,
+				MessageId:    id,
+				Type:         eventType,
+				Body:         payload,
 			})
 		
 		if err != nil {

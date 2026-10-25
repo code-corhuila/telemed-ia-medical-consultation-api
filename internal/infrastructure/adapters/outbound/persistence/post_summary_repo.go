@@ -1,6 +1,7 @@
 package persistence
 
 import (
+	"time"
 	"encoding/json"
 	"context"
 	"errors"
@@ -107,9 +108,16 @@ func (r *PostSummaryRepo) SaveWithOutbox(ctx context.Context, s *model.PostSumma
 
 	// 2. Construir y insertar OutboxEvent CON EL ID REAL
 	payload, _ := json.Marshal(map[string]interface{}{
-		"summaryId":      saved.ID,
-		"consultationId": saved.ConsultationID,
-		"patientId":      saved.PatientID,
+		"eventId":       saved.ID, // Usamos el ID del summary como base o generamos uno nuevo
+		"eventType":     "PostConsultationSummaryGenerated",
+		"occurredAt":    time.Now().UTC().Format(time.RFC3339),
+		"correlationId": "",
+		"version":       1,
+		"payload": map[string]interface{}{
+			"summaryId":      saved.ID,
+			"consultationId": saved.ConsultationID,
+			"patientId":      saved.PatientID,
+		},
 	})
 	
 	const qInsertOutbox = `
