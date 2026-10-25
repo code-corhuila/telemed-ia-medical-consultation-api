@@ -41,6 +41,7 @@ func Load() (*Config, error) {
 		DBSchema:   getEnv("DB_SCHEMA", "medical_consultation"),
 
 		JWTPublicKey: os.Getenv("JWT_PUBLIC_KEY"),
+		RabbitMQURL:  os.Getenv("RABBITMQ_URL"),
 
 		HTTPReadHeaderTimeout: getDuration("HTTP_READ_HEADER_TIMEOUT", 5*time.Second),
 		HTTPReadTimeout:       getDuration("HTTP_READ_TIMEOUT", 15*time.Second),
