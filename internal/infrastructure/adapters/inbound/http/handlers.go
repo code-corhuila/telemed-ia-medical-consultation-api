@@ -208,6 +208,7 @@ func (h *Handlers) GeneratePostSummary(w nethttp.ResponseWriter, r *nethttp.Requ
 		body = dto.GeneratePostSummaryCommand{}
 	}
 	body.ConsultationID = id
+	body.CorrelationID = trace
 
 	claims := FromContext(r.Context())
 	if claims == nil || claims.Role != "PROFESSIONAL" {
