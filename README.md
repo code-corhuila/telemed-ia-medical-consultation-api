@@ -41,6 +41,7 @@ internal/
 | Method | Path | Auth | Idempotency |
 |--------|------|------|-------------|
 | GET | `/health` | no | — |
+| GET | `/metrics` | no | — |
 | POST | `/api/consultations/{id}/attention` | yes | required |
 | GET | `/api/consultations/{id}/attention` | yes | — |
 | GET | `/api/post-summaries/{id}` | yes | — |
@@ -79,8 +80,26 @@ The container joins the external platform network so the gateway can reach it by
 
 Three permanent branches (`develop`, `qa`, `main`). No direct commits. Promotion between permanents uses `git cherry-pick -x` — no merge. Full policy lives in `library-docs`.
 
+## Observability
+
+- **Metrics**: `/metrics` exposes `medical_consultation_http_requests_total`
+  and `medical_consultation_http_duration_seconds`, both labeled by
+  `path`, `method`, `status` and `outcome` (`success` / `error`). UUIDs in
+  the path are masked to `{id}` to keep cardinality bounded.
+- **W3C Trace Context**: the `Correlation` middleware reads
+  `traceparent`, stores `traceId`/`spanId` in the context, and echoes the
+  header in the response. `X-Correlation-Id` is still used for structured
+  logs.
+- **Outbox**: post-summary events are written to `outbox_event` in the
+  same transaction as the summary (payload with the real `summaryId`).
+  The `OutboxPoller` publishes them to `consultation.events` with
+  `mandatory=true`, retries with backoff (1s..60s), and marks rows as
+  `PUBLISHED` or `FAILED` based on `attempts` and `last_error`.
+- See `OBSERVABILITY.md` for the full catalog and PromQL snippets.
+
 ## Known technical debt
 
-- `EventPublisherPort` currently resolved by a no-op adapter until ADR-011 (broker) is accepted.
-- Idempotency store is in-memory; a persistent store (Redis or a table) is planned in a follow-up.
-- Integration tests against a real PostgreSQL (Testcontainers) are not yet implemented.
+- Integration tests against a real PostgreSQL (Testcontainers) are not
+  yet implemented; the use cases are tested against in-memory fakes.
+- Idempotency store is in-memory; a persistent store (Redis or a table)
+  is planned in a follow-up.
