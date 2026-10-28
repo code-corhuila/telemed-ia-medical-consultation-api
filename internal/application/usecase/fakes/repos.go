@@ -125,7 +125,7 @@ func NewPostSummaryRepo() *PostSummaryRepo {
 	return &PostSummaryRepo{data: map[string]*model.PostSummary{}, next: 1}
 }
 
-func (r *PostSummaryRepo) SaveWithOutbox(_ context.Context, s *model.PostSummary) (*model.PostSummary, error) {
+func (r *PostSummaryRepo) SaveWithOutbox(_ context.Context, s *model.PostSummary, _ string) (*model.PostSummary, error) {
 	return r.Save(context.Background(), s)
 }
 

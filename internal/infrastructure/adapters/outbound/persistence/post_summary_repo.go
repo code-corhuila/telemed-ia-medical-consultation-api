@@ -1,16 +1,18 @@
 package persistence
 
 import (
-	"time"
-	"encoding/json"
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
+	"time"
 
-	"github.com/code-corhuila/telemed-ia-medical-consultation-api/internal/domain/exception"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/code-corhuila/telemed-ia-medical-consultation-api/internal/domain/exception"
 	"github.com/code-corhuila/telemed-ia-medical-consultation-api/internal/domain/model"
 )
 
@@ -78,7 +80,7 @@ func scanPostSummary(row pgx.Row) (*model.PostSummary, error) {
 	return &s, nil
 }
 
-func (r *PostSummaryRepo) SaveWithOutbox(ctx context.Context, s *model.PostSummary) (*model.PostSummary, error) {
+func (r *PostSummaryRepo) SaveWithOutbox(ctx context.Context, s *model.PostSummary, correlationID string) (*model.PostSummary, error) {
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
 		return nil, err
@@ -106,27 +108,39 @@ func (r *PostSummaryRepo) SaveWithOutbox(ctx context.Context, s *model.PostSumma
 		return nil, err
 	}
 
-	// 2. Construir y insertar OutboxEvent CON EL ID REAL
-	payload, _ := json.Marshal(map[string]interface{}{
-		"eventId":       saved.ID, // Usamos el ID del summary como base o generamos uno nuevo
-		"eventType":     "PostConsultationSummaryGenerated",
+	// 2. Construir el envelope comun y el payload con el ID real.
+	//    eventId es determinista a partir de summaryId + eventType:
+	//    re-generar el summary para la misma consulta produce el mismo
+	//    eventId, y el consumidor puede deduplicar por eventId.
+	eventType := "PostConsultationSummaryGenerated"
+	eventID := uuid.NewSHA1(uuid.NameSpaceOID, []byte(saved.ID+":"+eventType)).String()
+
+	envelopePayload, err := json.Marshal(map[string]interface{}{
+		"eventId":       eventID,
+		"eventType":     eventType,
 		"occurredAt":    time.Now().UTC().Format(time.RFC3339),
-		"correlationId": "",
+		"correlationId": correlationID,
 		"version":       1,
 		"payload": map[string]interface{}{
 			"summaryId":      saved.ID,
 			"consultationId": saved.ConsultationID,
+			"appointmentId":  saved.AppointmentID,
 			"patientId":      saved.PatientID,
+			"generatedAt":    saved.GeneratedAt.UTC().Format(time.RFC3339),
 		},
 	})
-	
-	const qInsertOutbox = `
-		INSERT INTO outbox_event (event_type, payload, correlation_id, status, created_at)
-		VALUES ($1, $2, '', 'PENDING', now())
-	`
-	_, err = tx.Exec(ctx, qInsertOutbox, "PostConsultationSummaryGenerated", payload)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("marshal outbox payload: %w", err)
+	}
+
+	// 3. Insertar outbox_event con event_id y correlation_id reales.
+	const qInsertOutbox = `
+		INSERT INTO outbox_event (event_id, event_type, payload, correlation_id, status, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, 'PENDING', now(), now())
+	`
+	_, err = tx.Exec(ctx, qInsertOutbox, eventID, eventType, envelopePayload, correlationID)
+	if err != nil {
+		return nil, fmt.Errorf("insert outbox_event: %w", err)
 	}
 
 	if err := tx.Commit(ctx); err != nil {

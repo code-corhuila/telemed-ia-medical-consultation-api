@@ -57,7 +57,7 @@ func (uc *GeneratePostSummary) Execute(ctx context.Context, cmd dto.GeneratePost
 	if err != nil {
 		return nil, exception.ErrInvalidPostSummary
 	}
-	saved, err := uc.postSummaries.SaveWithOutbox(ctx, ps)
+	saved, err := uc.postSummaries.SaveWithOutbox(ctx, ps, cmd.CorrelationID)
 	if err != nil {
 		return nil, err
 	}
