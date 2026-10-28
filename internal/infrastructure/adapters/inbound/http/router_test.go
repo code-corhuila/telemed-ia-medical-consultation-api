@@ -68,3 +68,34 @@ func TestMapError_Codes(t *testing.T) {
 	_ = dto.RecordAttentionCommand{}
 	_ = context.Background()
 }
+
+// TestRouter_MetricsEndpoint verifies that /metrics is exposed
+// and does not require a JWT (so Prometheus can scrape it).
+func TestRouter_MetricsEndpoint(t *testing.T) {
+	r, _, _ := newTestRouter(t)
+	req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
+	rec := httptest.NewRecorder()
+	r.Handler().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("/metrics: got status %d, want 200", rec.Code)
+	}
+	if !strings.Contains(rec.Body.String(), "medical_consultation_http_requests_total") {
+		t.Fatalf("/metrics body missing metric name; got %q", rec.Body.String())
+	}
+}
+
+// TestRouter_TraceparentEchoed verifies that the W3C traceparent header
+// is echoed back in the response when present on the request.
+func TestRouter_TraceparentEchoed(t *testing.T) {
+	r, _, _ := newTestRouter(t)
+	tp := "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	req.Header.Set("traceparent", tp)
+	rec := httptest.NewRecorder()
+	r.Handler().ServeHTTP(rec, req)
+
+	if got := rec.Header().Get("traceparent"); got != tp {
+		t.Fatalf("traceparent echo: got %q, want %q", got, tp)
+	}
+}
