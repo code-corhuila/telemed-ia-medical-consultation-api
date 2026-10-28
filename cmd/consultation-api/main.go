@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"context"
 	"errors"
 	"log/slog"
@@ -42,7 +41,6 @@ func main() {
 	consultationRepo := persistence.NewConsultationRepo(pool)
 	attentionRepo := persistence.NewAttentionRepo(pool)
 	postSummaryRepo := persistence.NewPostSummaryRepo(pool)
-	eventPublisher := messaging.NewNoopPublisher()
 
 	// ---------- application ----------
 	recordAttention := usecase.NewRecordAttention(consultationRepo, attentionRepo)
@@ -55,10 +53,9 @@ func main() {
 	router := inhttp.NewRouter(handlers, cfg.JWTPublicKey)
 
 	// ---------- background workers ----------
-	outboxPoller, err := messaging.NewOutboxPoller(pool, cfg.RabbitMQURL)
-	if err != nil {
-		log.Fatalf("Failed to initialize OutboxPoller: %v", err)
-	}
+	// NewOutboxPoller does not connect; Start() does. If RabbitMQ is down,
+	// the poller will retry with backoff and the API keeps serving traffic.
+	outboxPoller := messaging.NewOutboxPoller(pool, cfg.RabbitMQURL)
 	outboxPoller.Start()
 	defer outboxPoller.Stop()
 
@@ -71,10 +68,6 @@ func main() {
 		WriteTimeout:      cfg.HTTPWriteTimeout,
 		IdleTimeout:       cfg.HTTPIdleTimeout,
 	}
-
-	// Silence unused-var warnings for the publisher until it is wired to a
-	// real use case that emits events (follow-up PR once ADR-011 is accepted).
-	_ = eventPublisher
 
 	go func() {
 		slog.Info("starting server", "port", cfg.ServerPort)
