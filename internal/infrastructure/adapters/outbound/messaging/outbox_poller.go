@@ -2,6 +2,8 @@ package messaging
 
 import (
 	"context"
+	"errors"
+	"strings"
 	"fmt"
 	"log"
 	"time"
@@ -74,7 +76,8 @@ func (p *OutboxPoller) loop() {
 	for {
 		select {
 		case <-ticker.C:
-			if p.ch == nil {
+			if p.ch == nil || p.ch.IsClosed() {
+				p.closeAMQP()
 				// Still no connection; try to establish one with backoff.
 				if err := p.connect(); err != nil {
 					log.Printf("WARN: OutboxPoller still cannot reach RabbitMQ (retry in %s): %v", backoff, err)
@@ -126,6 +129,14 @@ func (p *OutboxPoller) connect() error {
 		return fmt.Errorf("declare exchange: %w", err)
 	}
 	returns := ch.NotifyReturn(make(chan amqp.Return, 1))
+	closeCh := ch.NotifyClose(make(chan *amqp.Error, 1))
+	go func() {
+		if err := <-closeCh; err != nil {
+			log.Printf("WARN: OutboxPoller channel closed: %v", err)
+			p.ch = nil
+			p.conn = nil
+		}
+	}()
 
 	p.conn = conn
 	p.ch = ch
@@ -216,6 +227,12 @@ func (p *OutboxPoller) processBatch(ctx context.Context) error {
 			})
 
 		if err != nil {
+			if isConnectionError(err) {
+				log.Printf("WARN: OutboxPoller channel is dead, will reconnect: %v", err)
+				p.ch = nil
+				p.conn = nil
+				return err
+			}
 			log.Printf("WARN: OutboxPoller failed to publish event_id=%s (will retry): %v", ev.eventID, err)
 			failedIDs = append(failedIDs, ev.id)
 			failedErrs = append(failedErrs, err.Error())
@@ -278,4 +295,19 @@ func (p *OutboxPoller) processBatch(ctx context.Context) error {
 		return fmt.Errorf("commit outbox tx: %w", err)
 	}
 	return nil
+}
+
+// isConnectionError reports whether the AMQP error is a transport-level
+// failure (channel/connection closed) rather than a routing/publish error.
+// Transport failures must not increment attempts: the event stays PENDING
+// and is retried after the poller reconnects.
+func isConnectionError(err error) bool {
+    if err == nil {
+        return false
+    }
+    msg := err.Error()
+    return strings.Contains(msg, "channel/connection is not open") ||
+        strings.Contains(msg, "connection is not open") ||
+        strings.Contains(msg, "channel is not open") ||
+        errors.Is(err, amqp.ErrClosed)
 }

@@ -17,6 +17,7 @@ services:
       DB_PASSWORD: ${MEDICAL_CONSULTATION_APP_PASSWORD:?required}
       DB_SCHEMA: medical_consultation
       JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY:?required}
+      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672/}
     expose:
       - "8080"
     networks:
