@@ -4,6 +4,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -40,7 +41,7 @@ func Load() (*Config, error) {
 		DBPassword: getEnv("DB_PASSWORD", ""),
 		DBSchema:   getEnv("DB_SCHEMA", "medical_consultation"),
 
-		JWTPublicKey: os.Getenv("JWT_PUBLIC_KEY"),
+		JWTPublicKey: strings.ReplaceAll(os.Getenv("JWT_PUBLIC_KEY"), `\n`, "\n"),
 		RabbitMQURL:  os.Getenv("RABBITMQ_URL"),
 
 		HTTPReadHeaderTimeout: getDuration("HTTP_READ_HEADER_TIMEOUT", 5*time.Second),
