@@ -1,12 +1,15 @@
 package http
 
 import (
+	"encoding/json"
 	"errors"
+	"log"
 	nethttp "net/http"
-	"strconv"
+	"regexp"
 
 	"github.com/code-corhuila/telemed-ia-medical-consultation-api/internal/application/dto"
 	"github.com/code-corhuila/telemed-ia-medical-consultation-api/internal/application/ports/in"
+	"github.com/code-corhuila/telemed-ia-medical-consultation-api/internal/application/ports/out"
 )
 
 // Handlers holds the use cases the router invokes.
@@ -15,6 +18,7 @@ type Handlers struct {
 	getAttention     in.GetAttentionPort
 	getPostSummary   in.GetPostSummaryPort
 	generatePostSumm in.GeneratePostSummaryPort
+	consultations    out.ConsultationRepositoryPort
 }
 
 // NewHandlers wires the use cases.
@@ -23,12 +27,14 @@ func NewHandlers(
 	getAttention in.GetAttentionPort,
 	getPostSummary in.GetPostSummaryPort,
 	generatePostSumm in.GeneratePostSummaryPort,
+	consultations out.ConsultationRepositoryPort,
 ) *Handlers {
 	return &Handlers{
 		recordAttention:  recordAttention,
 		getAttention:     getAttention,
 		getPostSummary:   getPostSummary,
 		generatePostSumm: generatePostSumm,
+		consultations:    consultations,
 	}
 }
 
@@ -44,10 +50,10 @@ func (h *Handlers) Health(w nethttp.ResponseWriter, _ *nethttp.Request) {
 func (h *Handlers) RecordAttention(w nethttp.ResponseWriter, r *nethttp.Request) {
 	trace := traceFrom(r.Context())
 
-	id, err := pathID(r)
+	id, err := pathUUID(r)
 	if err != nil {
 		WriteError(w, nethttp.StatusBadRequest, "INVALID_PATH",
-			"consultation id must be a positive integer", trace)
+			"consultation id must be a UUID", trace)
 		return
 	}
 
@@ -59,10 +65,35 @@ func (h *Handlers) RecordAttention(w nethttp.ResponseWriter, r *nethttp.Request)
 	}
 	body.ConsultationID = id
 
+	claims := FromContext(r.Context())
+	if claims == nil || claims.Role != "PROFESSIONAL" {
+		WriteError(w, nethttp.StatusForbidden, "FORBIDDEN", "only professionals can record attention", trace)
+		return
+	}
+
+	c, err := h.consultations.FindByID(r.Context(), body.ConsultationID)
+	if err != nil || c == nil {
+		WriteError(w, nethttp.StatusNotFound, "NOT_FOUND", "consultation not found", trace)
+		return
+	}
+	if c.ProfessionalID != claims.Subject {
+		WriteError(w, nethttp.StatusForbidden, "FORBIDDEN", "you are not the assigned professional", trace)
+		return
+	}
+
+	if len(body.FollowUp) > 0 && string(body.FollowUp) != "null" {
+		var obj map[string]interface{}
+		if err := json.Unmarshal(body.FollowUp, &obj); err != nil {
+			WriteError(w, nethttp.StatusBadRequest, "INVALID_PAYLOAD", "followUp must be a JSON object", trace)
+			return
+		}
+	}
 	resp, err := h.recordAttention.Execute(r.Context(), body)
 	if err != nil {
 		status, code := mapError(err)
-		WriteError(w, status, code, err.Error(), trace)
+		log.Printf("[%s] ERROR: %v", trace, err)
+
+		WriteError(w, status, code, safeErrorMessage(err, status), trace)
 		return
 	}
 	WriteData(w, nethttp.StatusCreated, resp)
@@ -72,50 +103,102 @@ func (h *Handlers) RecordAttention(w nethttp.ResponseWriter, r *nethttp.Request)
 func (h *Handlers) GetAttention(w nethttp.ResponseWriter, r *nethttp.Request) {
 	trace := traceFrom(r.Context())
 
-	id, err := pathID(r)
+	id, err := pathUUID(r)
 	if err != nil {
 		WriteError(w, nethttp.StatusBadRequest, "INVALID_PATH",
-			"consultation id must be a positive integer", trace)
+			"consultation id must be a UUID", trace)
 		return
 	}
 
 	resp, err := h.getAttention.Execute(r.Context(), id)
 	if err != nil {
 		status, code := mapError(err)
-		WriteError(w, status, code, err.Error(), trace)
+		log.Printf("[%s] ERROR: %v", trace, err)
+
+		WriteError(w, status, code, safeErrorMessage(err, status), trace)
 		return
 	}
-	WriteData(w, nethttp.StatusOK, resp)
+
+	// RBAC Check
+	claims := FromContext(r.Context())
+	if claims == nil {
+		WriteError(w, nethttp.StatusUnauthorized, "UNAUTHORIZED", "missing claims", trace)
+		return
+	}
+	if claims.Role == "SERVICE" && claims.Subject == "document-generation" {
+		WriteData(w, nethttp.StatusOK, resp)
+		return
+	}
+
+	c, err := h.consultations.FindByID(r.Context(), resp.ConsultationID)
+	if err == nil && c != nil {
+		if claims.Role == "PATIENT" && c.PatientID == claims.Subject {
+			WriteData(w, nethttp.StatusOK, resp)
+			return
+		}
+		if claims.Role == "PROFESSIONAL" && c.ProfessionalID == claims.Subject {
+			WriteData(w, nethttp.StatusOK, resp)
+			return
+		}
+	}
+
+	WriteError(w, nethttp.StatusForbidden, "FORBIDDEN", "insufficient permissions", trace)
 }
 
 // GetPostSummary handles GET /api/post-summaries/{id}
 func (h *Handlers) GetPostSummary(w nethttp.ResponseWriter, r *nethttp.Request) {
 	trace := traceFrom(r.Context())
 
-	id, err := pathID(r)
+	id, err := pathUUID(r)
 	if err != nil {
 		WriteError(w, nethttp.StatusBadRequest, "INVALID_PATH",
-			"post summary id must be a positive integer", trace)
+			"post summary id must be a UUID", trace)
 		return
 	}
 
 	resp, err := h.getPostSummary.Execute(r.Context(), id)
 	if err != nil {
 		status, code := mapError(err)
-		WriteError(w, status, code, err.Error(), trace)
+		log.Printf("[%s] ERROR: %v", trace, err)
+
+		WriteError(w, status, code, safeErrorMessage(err, status), trace)
 		return
 	}
-	WriteData(w, nethttp.StatusOK, resp)
+
+	// RBAC Check
+	claims := FromContext(r.Context())
+	if claims == nil {
+		WriteError(w, nethttp.StatusUnauthorized, "UNAUTHORIZED", "missing claims", trace)
+		return
+	}
+	if claims.Role == "SERVICE" && claims.Subject == "document-generation" {
+		WriteData(w, nethttp.StatusOK, resp)
+		return
+	}
+
+	c, err := h.consultations.FindByID(r.Context(), resp.ConsultationID)
+	if err == nil && c != nil {
+		if claims.Role == "PATIENT" && c.PatientID == claims.Subject {
+			WriteData(w, nethttp.StatusOK, resp)
+			return
+		}
+		if claims.Role == "PROFESSIONAL" && c.ProfessionalID == claims.Subject {
+			WriteData(w, nethttp.StatusOK, resp)
+			return
+		}
+	}
+
+	WriteError(w, nethttp.StatusForbidden, "FORBIDDEN", "insufficient permissions", trace)
 }
 
 // GeneratePostSummary handles POST /api/consultations/{id}/post-summary
 func (h *Handlers) GeneratePostSummary(w nethttp.ResponseWriter, r *nethttp.Request) {
 	trace := traceFrom(r.Context())
 
-	id, err := pathID(r)
+	id, err := pathUUID(r)
 	if err != nil {
 		WriteError(w, nethttp.StatusBadRequest, "INVALID_PATH",
-			"consultation id must be a positive integer", trace)
+			"consultation id must be a UUID", trace)
 		return
 	}
 
@@ -125,22 +208,49 @@ func (h *Handlers) GeneratePostSummary(w nethttp.ResponseWriter, r *nethttp.Requ
 		body = dto.GeneratePostSummaryCommand{}
 	}
 	body.ConsultationID = id
+	body.CorrelationID = trace
+
+	claims := FromContext(r.Context())
+	if claims == nil || claims.Role != "PROFESSIONAL" {
+		WriteError(w, nethttp.StatusForbidden, "FORBIDDEN", "only professionals can generate post-summaries", trace)
+		return
+	}
+
+	c, err := h.consultations.FindByID(r.Context(), body.ConsultationID)
+	if err != nil || c == nil {
+		WriteError(w, nethttp.StatusNotFound, "NOT_FOUND", "consultation not found", trace)
+		return
+	}
+	if c.ProfessionalID != claims.Subject {
+		WriteError(w, nethttp.StatusForbidden, "FORBIDDEN", "you are not the assigned professional", trace)
+		return
+	}
 
 	resp, err := h.generatePostSumm.Execute(r.Context(), body)
 	if err != nil {
 		status, code := mapError(err)
-		WriteError(w, status, code, err.Error(), trace)
+		log.Printf("[%s] ERROR: %v", trace, err)
+
+		WriteError(w, status, code, safeErrorMessage(err, status), trace)
 		return
 	}
 	WriteData(w, nethttp.StatusCreated, resp)
 }
 
-// pathID extracts {id} from the request path and validates it is positive.
-func pathID(r *nethttp.Request) (int64, error) {
+var uuidPattern = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
+
+// pathUUID extracts {id} from the request path and validates it is a UUID.
+func pathUUID(r *nethttp.Request) (string, error) {
 	raw := r.PathValue("id")
-	id, err := strconv.ParseInt(raw, 10, 64)
-	if err != nil || id <= 0 {
-		return 0, errors.New("invalid id")
+	if !uuidPattern.MatchString(raw) {
+		return "", errors.New("invalid id")
 	}
-	return id, nil
+	return raw, nil
+}
+
+func safeErrorMessage(err error, status int) string {
+	if status == nethttp.StatusInternalServerError {
+		return "An unexpected error occurred. Please contact support."
+	}
+	return err.Error()
 }

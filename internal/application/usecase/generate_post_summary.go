@@ -30,7 +30,7 @@ func NewGeneratePostSummary(
 }
 
 func (uc *GeneratePostSummary) Execute(ctx context.Context, cmd dto.GeneratePostSummaryCommand) (*dto.PostSummaryResponse, error) {
-	if cmd.ConsultationID <= 0 {
+	if cmd.ConsultationID == "" {
 		return nil, exception.ErrInvalidPostSummary
 	}
 	c, err := uc.consultations.FindByID(ctx, cmd.ConsultationID)
@@ -48,7 +48,7 @@ func (uc *GeneratePostSummary) Execute(ctx context.Context, cmd dto.GeneratePost
 	if err != nil {
 		return nil, err
 	}
-	var attID *int64
+	var attID *string
 	if att != nil {
 		attID = &att.ID
 	}
@@ -57,7 +57,7 @@ func (uc *GeneratePostSummary) Execute(ctx context.Context, cmd dto.GeneratePost
 	if err != nil {
 		return nil, exception.ErrInvalidPostSummary
 	}
-	saved, err := uc.postSummaries.Save(ctx, ps)
+	saved, err := uc.postSummaries.SaveWithOutbox(ctx, ps, cmd.CorrelationID)
 	if err != nil {
 		return nil, err
 	}

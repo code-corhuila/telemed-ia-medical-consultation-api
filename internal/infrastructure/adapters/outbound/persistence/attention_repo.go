@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 
+	"github.com/code-corhuila/telemed-ia-medical-consultation-api/internal/domain/exception"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/code-corhuila/telemed-ia-medical-consultation-api/internal/domain/model"
@@ -44,16 +46,25 @@ func (r *AttentionRepo) Save(ctx context.Context, s *model.AttentionSummary) (*m
 		s.ConsultationID, s.Diagnosis, s.Recommendations, meds,
 		s.Observations, s.Referral, s.FollowUp, s.CreatedAt, s.UpdatedAt,
 	)
-	return scanAttention(row)
+
+	saved, err := scanAttention(row)
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return nil, exception.ErrAttentionAlreadyExists
+		}
+		return nil, err
+	}
+	return saved, nil
 }
 
-func (r *AttentionRepo) FindByID(ctx context.Context, id int64) (*model.AttentionSummary, error) {
+func (r *AttentionRepo) FindByID(ctx context.Context, id string) (*model.AttentionSummary, error) {
 	q := `SELECT ` + attentionColumns + ` FROM attention_summaries WHERE id = $1`
 	row := r.pool.QueryRow(ctx, q, id)
 	return scanAttention(row)
 }
 
-func (r *AttentionRepo) FindByConsultationID(ctx context.Context, consultationID int64) (*model.AttentionSummary, error) {
+func (r *AttentionRepo) FindByConsultationID(ctx context.Context, consultationID string) (*model.AttentionSummary, error) {
 	q := `SELECT ` + attentionColumns + ` FROM attention_summaries WHERE consultation_id = $1`
 	row := r.pool.QueryRow(ctx, q, consultationID)
 	return scanAttention(row)
@@ -80,4 +91,48 @@ func scanAttention(row pgx.Row) (*model.AttentionSummary, error) {
 		s.Medications = []model.MedicationInstruction{}
 	}
 	return &s, nil
+}
+
+func (r *AttentionRepo) SaveAndComplete(ctx context.Context, s *model.AttentionSummary) (*model.AttentionSummary, error) {
+	meds, err := json.Marshal(s.Medications)
+	if err != nil {
+		return nil, err
+	}
+
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+
+	const qInsert = `
+		INSERT INTO attention_summaries
+			(consultation_id, diagnosis, recommendations, medications,
+			 observations, referral, follow_up, created_at, updated_at)
+		VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7, $8, $9)
+		RETURNING ` + attentionColumns
+
+	row := tx.QueryRow(ctx, qInsert,
+		s.ConsultationID, s.Diagnosis, s.Recommendations, meds,
+		s.Observations, s.Referral, s.FollowUp, s.CreatedAt, s.UpdatedAt,
+	)
+	saved, err := scanAttention(row)
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return nil, exception.ErrAttentionAlreadyExists
+		}
+		return nil, err
+	}
+
+	const qUpdate = `UPDATE consultations SET status = 'COMPLETED', completed_at = now(), updated_at = now() WHERE id = $1`
+	_, err = tx.Exec(ctx, qUpdate, s.ConsultationID)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
+	}
+	return saved, nil
 }

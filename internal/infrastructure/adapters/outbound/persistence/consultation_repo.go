@@ -38,19 +38,19 @@ func (r *ConsultationRepo) Save(ctx context.Context, c *model.Consultation) (*mo
 	return scanConsultation(row)
 }
 
-func (r *ConsultationRepo) FindByID(ctx context.Context, id int64) (*model.Consultation, error) {
+func (r *ConsultationRepo) FindByID(ctx context.Context, id string) (*model.Consultation, error) {
 	q := `SELECT ` + consultationColumns + ` FROM consultations WHERE id = $1 AND deleted_at IS NULL`
 	row := r.pool.QueryRow(ctx, q, id)
 	return scanConsultation(row)
 }
 
-func (r *ConsultationRepo) FindByAppointmentID(ctx context.Context, appointmentID int64) (*model.Consultation, error) {
+func (r *ConsultationRepo) FindByAppointmentID(ctx context.Context, appointmentID string) (*model.Consultation, error) {
 	q := `SELECT ` + consultationColumns + ` FROM consultations WHERE appointment_id = $1 AND deleted_at IS NULL`
 	row := r.pool.QueryRow(ctx, q, appointmentID)
 	return scanConsultation(row)
 }
 
-func (r *ConsultationRepo) Complete(ctx context.Context, id int64) (*model.Consultation, error) {
+func (r *ConsultationRepo) Complete(ctx context.Context, id string) (*model.Consultation, error) {
 	const q = `
 		UPDATE consultations
 		SET status = $2, completed_at = now(), updated_at = now()

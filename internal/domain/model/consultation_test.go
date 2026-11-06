@@ -6,16 +6,25 @@ import (
 	"github.com/code-corhuila/telemed-ia-medical-consultation-api/internal/domain/exception"
 )
 
-func TestNewConsultation_RejectsNonPositiveIDs(t *testing.T) {
+const (
+	uuidA = "00000000-0000-0000-0000-000000000001"
+	uuidB = "00000000-0000-0000-0000-000000000002"
+	uuidC = "00000000-0000-0000-0000-000000000003"
+)
+
+func TestNewConsultation_RejectsInvalidIDs(t *testing.T) {
 	cases := []struct {
 		name           string
-		appointmentID  int64
-		patientID      int64
-		professionalID int64
+		appointmentID  string
+		patientID      string
+		professionalID string
 	}{
-		{"zero appointment", 0, 1, 1},
-		{"negative patient", 1, -1, 1},
-		{"negative professional", 1, 1, -1},
+		{"empty appointment", "", uuidB, uuidC},
+		{"empty patient", uuidA, "", uuidC},
+		{"empty professional", uuidA, uuidB, ""},
+		{"not a uuid appointment", "abc", uuidB, uuidC},
+		{"not a uuid patient", uuidA, "abc", uuidC},
+		{"not a uuid professional", uuidA, uuidB, "abc"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -28,7 +37,7 @@ func TestNewConsultation_RejectsNonPositiveIDs(t *testing.T) {
 }
 
 func TestNewConsultation_StartsInProgress(t *testing.T) {
-	c, err := NewConsultation(1, 2, 3)
+	c, err := NewConsultation(uuidA, uuidB, uuidC)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -38,10 +47,13 @@ func TestNewConsultation_StartsInProgress(t *testing.T) {
 	if c.CompletedAt != nil {
 		t.Fatalf("CompletedAt should be nil")
 	}
+	if c.AppointmentID != uuidA || c.PatientID != uuidB || c.ProfessionalID != uuidC {
+		t.Fatalf("UUIDs not stored correctly: %+v", c)
+	}
 }
 
 func TestComplete_SetsStatusAndTimestamp(t *testing.T) {
-	c, _ := NewConsultation(1, 2, 3)
+	c, _ := NewConsultation(uuidA, uuidB, uuidC)
 	if err := c.Complete(); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -54,7 +66,7 @@ func TestComplete_SetsStatusAndTimestamp(t *testing.T) {
 }
 
 func TestComplete_IsNotIdempotent(t *testing.T) {
-	c, _ := NewConsultation(1, 2, 3)
+	c, _ := NewConsultation(uuidA, uuidB, uuidC)
 	_ = c.Complete()
 	if err := c.Complete(); err != exception.ErrConsultationAlreadyCompleted {
 		t.Fatalf("expected ErrConsultationAlreadyCompleted, got %v", err)
@@ -62,7 +74,7 @@ func TestComplete_IsNotIdempotent(t *testing.T) {
 }
 
 func TestEnsureInProgress_RejectsCompleted(t *testing.T) {
-	c, _ := NewConsultation(1, 2, 3)
+	c, _ := NewConsultation(uuidA, uuidB, uuidC)
 	_ = c.Complete()
 	if err := c.EnsureInProgress(); err == nil {
 		t.Fatalf("expected error on completed consultation")

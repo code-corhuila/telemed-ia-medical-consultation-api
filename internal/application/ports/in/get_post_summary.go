@@ -8,5 +8,5 @@ import (
 
 // GetPostSummaryPort is the input boundary for reading a post-summary.
 type GetPostSummaryPort interface {
-	Execute(ctx context.Context, id int64) (*dto.PostSummaryResponse, error)
+	Execute(ctx context.Context, id string) (*dto.PostSummaryResponse, error)
 }
