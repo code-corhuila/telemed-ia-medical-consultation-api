@@ -14,7 +14,6 @@ import (
 
 const (
 	outboxExchange     = "consultation.events"
-	outboxRoutingKey   = "post-consultation-summary-generated"
 	outboxBatchSize    = 10
 	outboxMaxAttempts  = 5
 	outboxPollInterval = 5 * time.Second
@@ -211,9 +210,17 @@ func (p *OutboxPoller) processBatch(ctx context.Context) error {
 	)
 
 	for _, ev := range batch {
+		routingKey, known := routingKeyFor(ev.eventType)
+		if !known {
+			// DEC-007: an unknown type is never published under another event's key.
+			log.Printf("WARN: OutboxPoller has no routing key for event_id=%s type=%s", ev.eventID, ev.eventType)
+			failedIDs = append(failedIDs, ev.id)
+			failedErrs = append(failedErrs, "no routing key for event type "+ev.eventType)
+			continue
+		}
 		err := p.ch.PublishWithContext(ctx,
 			outboxExchange,
-			outboxRoutingKey,
+			routingKey,
 			true, // mandatory: bounce back if no queue is bound
 			false,
 			amqp.Publishing{
