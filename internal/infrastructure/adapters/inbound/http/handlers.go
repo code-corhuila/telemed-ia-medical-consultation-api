@@ -19,6 +19,7 @@ type Handlers struct {
 	getPostSummary   in.GetPostSummaryPort
 	generatePostSumm in.GeneratePostSummaryPort
 	consultations    out.ConsultationRepositoryPort
+	startConsult     in.StartConsultationPort
 }
 
 // NewHandlers wires the use cases.
@@ -28,6 +29,7 @@ func NewHandlers(
 	getPostSummary in.GetPostSummaryPort,
 	generatePostSumm in.GeneratePostSummaryPort,
 	consultations out.ConsultationRepositoryPort,
+	startConsult in.StartConsultationPort,
 ) *Handlers {
 	return &Handlers{
 		recordAttention:  recordAttention,
@@ -35,6 +37,7 @@ func NewHandlers(
 		getPostSummary:   getPostSummary,
 		generatePostSumm: generatePostSumm,
 		consultations:    consultations,
+		startConsult:     startConsult,
 	}
 }
 
@@ -44,6 +47,11 @@ func (h *Handlers) Health(w nethttp.ResponseWriter, _ *nethttp.Request) {
 		"status":  "UP",
 		"service": "medical-consultation-api",
 	})
+}
+
+// StartConsultation handles POST /api/consultations (DEC-006).
+func (h *Handlers) StartConsultation(w nethttp.ResponseWriter, r *nethttp.Request) {
+	WriteError(w, nethttp.StatusNotImplemented, "NOT_IMPLEMENTED", "not implemented", traceFrom(r.Context()))
 }
 
 // RecordAttention handles POST /api/consultations/{id}/attention

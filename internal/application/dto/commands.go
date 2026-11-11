@@ -27,3 +27,12 @@ type GeneratePostSummaryCommand struct {
 	PreconsultationSummaryID *string `json:"preconsultationSummaryId,omitempty"`
 	CorrelationID            string  `json:"-"`
 }
+
+// StartConsultationCommand starts the consultation of an appointment (DEC-006).
+type StartConsultationCommand struct {
+	AppointmentID string
+	CallerID      string
+	CallerRole    string
+	// AccessToken is relayed to appointment-scheduling; it is never stored or logged.
+	AccessToken string
+}
