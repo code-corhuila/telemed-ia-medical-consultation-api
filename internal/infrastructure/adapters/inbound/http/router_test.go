@@ -22,7 +22,7 @@ func newTestRouter(t *testing.T) (*adapter.Router, *fakes.ConsultationRepo, *fak
 
 	record := usecase.NewRecordAttention(cs, as)
 	getAtt := usecase.NewGetAttention(as)
-	getPost := usecase.NewGetPostSummary(ps)
+	getPost := usecase.NewGetPostSummary(ps, cs)
 	genPost := usecase.NewGeneratePostSummary(cs, as, ps)
 
 	h := adapter.NewHandlers(record, getAtt, getPost, genPost, nil, nil)
