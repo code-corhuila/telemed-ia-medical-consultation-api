@@ -11,6 +11,7 @@ import (
 
 	"github.com/code-corhuila/telemed-ia-medical-consultation-api/internal/application/usecase"
 	inhttp "github.com/code-corhuila/telemed-ia-medical-consultation-api/internal/infrastructure/adapters/inbound/http"
+	"github.com/code-corhuila/telemed-ia-medical-consultation-api/internal/infrastructure/adapters/outbound/appointments"
 	"github.com/code-corhuila/telemed-ia-medical-consultation-api/internal/infrastructure/adapters/outbound/messaging"
 	"github.com/code-corhuila/telemed-ia-medical-consultation-api/internal/infrastructure/adapters/outbound/persistence"
 	"github.com/code-corhuila/telemed-ia-medical-consultation-api/internal/infrastructure/config"
@@ -47,9 +48,11 @@ func main() {
 	getAttention := usecase.NewGetAttention(attentionRepo)
 	getPostSummary := usecase.NewGetPostSummary(postSummaryRepo)
 	generatePostSummary := usecase.NewGeneratePostSummary(consultationRepo, attentionRepo, postSummaryRepo)
+	appointmentReader := appointments.NewClient(cfg.AppointmentAPIURL, cfg.AppointmentAPITimeout)
+	startConsultation := usecase.NewStartConsultation(consultationRepo, appointmentReader)
 
 	// ---------- inbound ----------
-	handlers := inhttp.NewHandlers(recordAttention, getAttention, getPostSummary, generatePostSummary, consultationRepo)
+	handlers := inhttp.NewHandlers(recordAttention, getAttention, getPostSummary, generatePostSummary, consultationRepo, startConsultation)
 	router := inhttp.NewRouter(handlers, cfg.JWTPublicKey)
 
 	// ---------- background workers ----------

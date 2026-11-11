@@ -31,3 +31,15 @@ type PostSummaryResponse struct {
 	AttentionSummaryID       *string   `json:"attentionSummaryId,omitempty"`
 	GeneratedAt              time.Time `json:"generatedAt"`
 }
+
+// ConsultationResponse follows the Consultation schema of consultation-service.yaml.
+type ConsultationResponse struct {
+	ID             string     `json:"id"`
+	AppointmentID  string     `json:"appointmentId"`
+	PatientID      string     `json:"patientId"`
+	ProfessionalID string     `json:"professionalId"`
+	Status         string     `json:"status"`
+	CompletedAt    *time.Time `json:"completedAt"`
+	CreatedAt      time.Time  `json:"createdAt"`
+	UpdatedAt      time.Time  `json:"updatedAt"`
+}
