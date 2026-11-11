@@ -92,9 +92,13 @@ Three permanent branches (`develop`, `qa`, `main`). No direct commits. Promotion
   `traceparent`, stores `traceId`/`spanId` in the context, and echoes the
   header in the response. `X-Correlation-Id` is still used for structured
   logs.
-- **Outbox**: post-summary events are written to `outbox_event` in the
-  same transaction as the summary (payload with the real `summaryId`).
-  The `OutboxPoller` publishes them to `consultation.events` with
+- **Outbox**: events are written to `outbox_event` in the same transaction as
+  the business change: `PostConsultationSummaryGenerated` with the summary
+  (payload with the real `summaryId`), and `ConsultationCompleted` when the
+  attention is recorded (identifiers only, DEC-003/DEC-007).
+  The `OutboxPoller` publishes them to `consultation.events` with the routing
+  key of each type (`post-consultation-summary-generated`,
+  `consultation-completed`; an unknown type is never published) and
   `mandatory=true`, retries with backoff (1s..60s), and marks rows as
   `PUBLISHED` or `FAILED` based on `attempts` and `last_error`.
 - See `OBSERVABILITY.md` for the full catalog and PromQL snippets.
