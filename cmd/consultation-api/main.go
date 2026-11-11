@@ -46,7 +46,7 @@ func main() {
 	// ---------- application ----------
 	recordAttention := usecase.NewRecordAttention(consultationRepo, attentionRepo)
 	getAttention := usecase.NewGetAttention(attentionRepo)
-	getPostSummary := usecase.NewGetPostSummary(postSummaryRepo)
+	getPostSummary := usecase.NewGetPostSummary(postSummaryRepo, consultationRepo)
 	generatePostSummary := usecase.NewGeneratePostSummary(consultationRepo, attentionRepo, postSummaryRepo)
 	appointmentReader := appointments.NewClient(cfg.AppointmentAPIURL, cfg.AppointmentAPITimeout)
 	startConsultation := usecase.NewStartConsultation(consultationRepo, appointmentReader)

@@ -15,7 +15,8 @@ const ConsultationCompletedEventType = "ConsultationCompleted"
 //
 // The envelope follows ADR-011 and the payload carries identifiers only. The event id is a
 // UUID v5 of the consultation id and the event type, so one consultation has one event id.
-func NewConsultationCompletedEvent(c *Consultation, correlationID string, occurredAt time.Time) (OutboxEvent, error) {
+// postSummaryId is added when the post-summary was created with the attention (DEC-008).
+func NewConsultationCompletedEvent(c *Consultation, postSummaryID, correlationID string, occurredAt time.Time) (OutboxEvent, error) {
 	if c == nil || c.Status != StatusCompleted || c.CompletedAt == nil || c.ID == "" {
 		return OutboxEvent{}, errors.New("ConsultationCompleted needs a completed consultation")
 	}

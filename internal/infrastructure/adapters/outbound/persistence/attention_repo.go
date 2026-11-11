@@ -139,7 +139,7 @@ func (r *AttentionRepo) SaveAndComplete(ctx context.Context, s *model.AttentionS
 	}
 
 	// DEC-003, DEC-007: ConsultationCompleted is written in the same transaction.
-	event, err := model.NewConsultationCompletedEvent(completed, correlation.FromContext(ctx), time.Now().UTC())
+	event, err := model.NewConsultationCompletedEvent(completed, "", correlation.FromContext(ctx), time.Now().UTC())
 	if err != nil {
 		return nil, fmt.Errorf("build ConsultationCompleted: %w", err)
 	}

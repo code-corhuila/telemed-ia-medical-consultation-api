@@ -29,7 +29,11 @@ type PostSummaryResponse struct {
 	PatientID                string    `json:"patientId"`
 	PreconsultationSummaryID *string   `json:"preconsultationSummaryId,omitempty"`
 	AttentionSummaryID       *string   `json:"attentionSummaryId,omitempty"`
-	GeneratedAt              time.Time `json:"generatedAt"`
+	ProfessionalID           string     `json:"professionalId,omitempty"`
+	CompletedAt              *time.Time `json:"completedAt,omitempty"`
+	GeneratedAt              time.Time  `json:"generatedAt"`
+	// Created is false when the summary already existed (DEC-008); the handler answers 200 instead of 201.
+	Created bool `json:"-"`
 }
 
 // ConsultationResponse follows the Consultation schema of consultation-service.yaml.
