@@ -23,12 +23,12 @@ type AttentionSummaryResponse struct {
 // PostSummaryResponse is what the API returns for a post-summary.
 // Cross-domain IDs are UUID strings.
 type PostSummaryResponse struct {
-	ID                       string    `json:"id"`
-	ConsultationID           string    `json:"consultationId"`
-	AppointmentID            string    `json:"appointmentId"`
-	PatientID                string    `json:"patientId"`
-	PreconsultationSummaryID *string   `json:"preconsultationSummaryId,omitempty"`
-	AttentionSummaryID       *string   `json:"attentionSummaryId,omitempty"`
+	ID                       string     `json:"id"`
+	ConsultationID           string     `json:"consultationId"`
+	AppointmentID            string     `json:"appointmentId"`
+	PatientID                string     `json:"patientId"`
+	PreconsultationSummaryID *string    `json:"preconsultationSummaryId,omitempty"`
+	AttentionSummaryID       *string    `json:"attentionSummaryId,omitempty"`
 	ProfessionalID           string     `json:"professionalId,omitempty"`
 	CompletedAt              *time.Time `json:"completedAt,omitempty"`
 	GeneratedAt              time.Time  `json:"generatedAt"`
