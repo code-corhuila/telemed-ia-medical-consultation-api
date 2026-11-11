@@ -6,6 +6,7 @@ import (
 	"log"
 	nethttp "net/http"
 	"regexp"
+	"strings"
 
 	"github.com/code-corhuila/telemed-ia-medical-consultation-api/internal/application/dto"
 	"github.com/code-corhuila/telemed-ia-medical-consultation-api/internal/application/ports/in"
@@ -19,6 +20,7 @@ type Handlers struct {
 	getPostSummary   in.GetPostSummaryPort
 	generatePostSumm in.GeneratePostSummaryPort
 	consultations    out.ConsultationRepositoryPort
+	startConsult     in.StartConsultationPort
 }
 
 // NewHandlers wires the use cases.
@@ -28,6 +30,7 @@ func NewHandlers(
 	getPostSummary in.GetPostSummaryPort,
 	generatePostSumm in.GeneratePostSummaryPort,
 	consultations out.ConsultationRepositoryPort,
+	startConsult in.StartConsultationPort,
 ) *Handlers {
 	return &Handlers{
 		recordAttention:  recordAttention,
@@ -35,6 +38,7 @@ func NewHandlers(
 		getPostSummary:   getPostSummary,
 		generatePostSumm: generatePostSumm,
 		consultations:    consultations,
+		startConsult:     startConsult,
 	}
 }
 
@@ -44,6 +48,49 @@ func (h *Handlers) Health(w nethttp.ResponseWriter, _ *nethttp.Request) {
 		"status":  "UP",
 		"service": "medical-consultation-api",
 	})
+}
+
+// StartConsultation handles POST /api/consultations (DEC-006).
+//
+// 201 with a new consultation, 200 with the existing one of the appointment.
+func (h *Handlers) StartConsultation(w nethttp.ResponseWriter, r *nethttp.Request) {
+	trace := traceFrom(r.Context())
+
+	var body struct {
+		AppointmentID string `json:"appointmentId"`
+	}
+	if err := DecodeJSON(r, &body); err != nil {
+		WriteError(w, nethttp.StatusBadRequest, "INVALID_PAYLOAD", "body must be {\"appointmentId\": \"<uuid>\"}", trace)
+		return
+	}
+
+	claims := FromContext(r.Context())
+	if claims == nil {
+		WriteError(w, nethttp.StatusUnauthorized, "UNAUTHORIZED", "missing claims", trace)
+		return
+	}
+
+	resp, created, err := h.startConsult.Execute(r.Context(), dto.StartConsultationCommand{
+		AppointmentID: body.AppointmentID,
+		CallerID:      claims.Subject,
+		CallerRole:    claims.Role,
+		AccessToken:   strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "),
+	})
+	if err != nil {
+		status, code := mapError(err)
+		log.Printf("[%s] start consultation: %v", trace, err)
+		message := safeErrorMessage(err, status)
+		if status == nethttp.StatusServiceUnavailable {
+			message = "The appointment service is not available. Try again later."
+		}
+		WriteError(w, status, code, message, trace)
+		return
+	}
+	if created {
+		WriteData(w, nethttp.StatusCreated, resp)
+		return
+	}
+	WriteData(w, nethttp.StatusOK, resp)
 }
 
 // RecordAttention handles POST /api/consultations/{id}/attention

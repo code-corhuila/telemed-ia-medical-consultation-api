@@ -44,3 +44,17 @@ var (
 var ErrAttentionAlreadyExists = errors.New("attention already exists for this consultation")
 
 var ErrPostSummaryAlreadyExists = errors.New("post summary already exists for this consultation")
+
+// ErrForbidden is returned when the caller's role may not perform the operation.
+var ErrForbidden = errors.New("forbidden")
+
+// ErrAppointmentNotFound is returned when the appointment service does not know the appointment.
+var ErrAppointmentNotFound = errors.New("appointment not found")
+
+// ErrAppointmentServiceUnavailable is returned when the appointment service times out,
+// cannot be reached or answers 5xx (DEC-006).
+var ErrAppointmentServiceUnavailable = errors.New("appointment service unavailable")
+
+// ErrAppointmentNotAttendable is returned when the appointment is not the caller's or is not
+// CONFIRMED or RESCHEDULED (DEC-006).
+var ErrAppointmentNotAttendable = errors.New("appointment cannot be attended")
