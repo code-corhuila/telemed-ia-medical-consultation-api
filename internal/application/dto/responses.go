@@ -23,13 +23,17 @@ type AttentionSummaryResponse struct {
 // PostSummaryResponse is what the API returns for a post-summary.
 // Cross-domain IDs are UUID strings.
 type PostSummaryResponse struct {
-	ID                       string    `json:"id"`
-	ConsultationID           string    `json:"consultationId"`
-	AppointmentID            string    `json:"appointmentId"`
-	PatientID                string    `json:"patientId"`
-	PreconsultationSummaryID *string   `json:"preconsultationSummaryId,omitempty"`
-	AttentionSummaryID       *string   `json:"attentionSummaryId,omitempty"`
-	GeneratedAt              time.Time `json:"generatedAt"`
+	ID                       string     `json:"id"`
+	ConsultationID           string     `json:"consultationId"`
+	AppointmentID            string     `json:"appointmentId"`
+	PatientID                string     `json:"patientId"`
+	PreconsultationSummaryID *string    `json:"preconsultationSummaryId,omitempty"`
+	AttentionSummaryID       *string    `json:"attentionSummaryId,omitempty"`
+	ProfessionalID           string     `json:"professionalId,omitempty"`
+	CompletedAt              *time.Time `json:"completedAt,omitempty"`
+	GeneratedAt              time.Time  `json:"generatedAt"`
+	// Created is false when the summary already existed (DEC-008); the handler answers 200 instead of 201.
+	Created bool `json:"-"`
 }
 
 // ConsultationResponse follows the Consultation schema of consultation-service.yaml.

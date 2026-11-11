@@ -44,6 +44,15 @@ func (uc *GeneratePostSummary) Execute(ctx context.Context, cmd dto.GeneratePost
 		return nil, exception.ErrConsultationNotCompleted
 	}
 
+	// DEC-008: the summary is created with the attention; regenerating returns it.
+	existing, err := uc.postSummaries.FindByConsultationID(ctx, cmd.ConsultationID)
+	if err != nil {
+		return nil, err
+	}
+	if existing != nil {
+		return toPostSummaryResponse(existing), nil
+	}
+
 	att, err := uc.summaries.FindByConsultationID(ctx, cmd.ConsultationID)
 	if err != nil {
 		return nil, err
@@ -61,5 +70,7 @@ func (uc *GeneratePostSummary) Execute(ctx context.Context, cmd dto.GeneratePost
 	if err != nil {
 		return nil, err
 	}
-	return toPostSummaryResponse(saved), nil
+	resp := toPostSummaryResponse(saved)
+	resp.Created = true
+	return resp, nil
 }

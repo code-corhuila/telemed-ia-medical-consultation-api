@@ -281,7 +281,12 @@ func (h *Handlers) GeneratePostSummary(w nethttp.ResponseWriter, r *nethttp.Requ
 		WriteError(w, status, code, safeErrorMessage(err, status), trace)
 		return
 	}
-	WriteData(w, nethttp.StatusCreated, resp)
+	// DEC-008: 201 when created, 200 when the summary already existed.
+	status := nethttp.StatusOK
+	if resp.Created {
+		status = nethttp.StatusCreated
+	}
+	WriteData(w, status, resp)
 }
 
 var uuidPattern = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)

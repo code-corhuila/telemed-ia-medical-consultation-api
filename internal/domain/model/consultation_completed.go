@@ -15,25 +15,36 @@ const ConsultationCompletedEventType = "ConsultationCompleted"
 //
 // The envelope follows ADR-011 and the payload carries identifiers only. The event id is a
 // UUID v5 of the consultation id and the event type, so one consultation has one event id.
-func NewConsultationCompletedEvent(c *Consultation, correlationID string, occurredAt time.Time) (OutboxEvent, error) {
+// postSummaryId is added when the post-summary was created with the attention (DEC-008).
+func NewConsultationCompletedEvent(c *Consultation, postSummaryID, correlationID string, occurredAt time.Time) (OutboxEvent, error) {
 	if c == nil || c.Status != StatusCompleted || c.CompletedAt == nil || c.ID == "" {
 		return OutboxEvent{}, errors.New("ConsultationCompleted needs a completed consultation")
 	}
 
-	eventID := uuid.NewSHA1(uuid.NameSpaceOID, []byte(c.ID+":"+ConsultationCompletedEventType)).String()
+	payload := map[string]string{
+		"consultationId": c.ID,
+		"appointmentId":  c.AppointmentID,
+		"patientId":      c.PatientID,
+		"professionalId": c.ProfessionalID,
+		"completedAt":    c.CompletedAt.UTC().Format(time.RFC3339),
+	}
+	if postSummaryID != "" {
+		payload["postSummaryId"] = postSummaryID
+	}
+	return newOutboxEvent(c.ID, ConsultationCompletedEventType, payload, correlationID, occurredAt)
+}
+
+// newOutboxEvent wraps a payload in the ADR-011 envelope. The event id is a UUID v5 of the
+// aggregate id and the event type, so the same aggregate always gives the same event id.
+func newOutboxEvent(aggregateID, eventType string, payload any, correlationID string, occurredAt time.Time) (OutboxEvent, error) {
+	eventID := uuid.NewSHA1(uuid.NameSpaceOID, []byte(aggregateID+":"+eventType)).String()
 	envelope, err := json.Marshal(map[string]any{
 		"eventId":       eventID,
-		"eventType":     ConsultationCompletedEventType,
+		"eventType":     eventType,
 		"occurredAt":    occurredAt.UTC().Format(time.RFC3339),
 		"correlationId": correlationID,
 		"version":       1,
-		"payload": map[string]string{
-			"consultationId": c.ID,
-			"appointmentId":  c.AppointmentID,
-			"patientId":      c.PatientID,
-			"professionalId": c.ProfessionalID,
-			"completedAt":    c.CompletedAt.UTC().Format(time.RFC3339),
-		},
+		"payload":       payload,
 	})
 	if err != nil {
 		return OutboxEvent{}, err
@@ -41,7 +52,7 @@ func NewConsultationCompletedEvent(c *Consultation, correlationID string, occurr
 
 	return OutboxEvent{
 		ID:            eventID,
-		EventType:     ConsultationCompletedEventType,
+		EventType:     eventType,
 		Payload:       envelope,
 		CorrelationID: correlationID,
 		Status:        "PENDING",
