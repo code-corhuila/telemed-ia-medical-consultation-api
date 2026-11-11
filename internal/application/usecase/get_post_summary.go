@@ -30,7 +30,17 @@ func (uc *GetPostSummary) Execute(ctx context.Context, id string) (*dto.PostSumm
 	if s == nil {
 		return nil, exception.ErrPostSummaryNotFound
 	}
-	return toPostSummaryResponse(s), nil
+	resp := toPostSummaryResponse(s)
+	// DEC-008: the patient's document shows who attended and when.
+	c, err := uc.consultations.FindByID(ctx, s.ConsultationID)
+	if err != nil {
+		return nil, err
+	}
+	if c != nil {
+		resp.ProfessionalID = c.ProfessionalID
+		resp.CompletedAt = c.CompletedAt
+	}
+	return resp, nil
 }
 
 func toPostSummaryResponse(s *model.PostSummary) *dto.PostSummaryResponse {

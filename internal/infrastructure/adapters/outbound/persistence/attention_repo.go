@@ -138,17 +138,24 @@ func (r *AttentionRepo) SaveAndComplete(ctx context.Context, s *model.AttentionS
 		return nil, exception.ErrConsultationNotFound
 	}
 
+	// DEC-008: the post-consultation summary is created in the same transaction.
+	attentionID := saved.ID
+	summary, err := model.NewPostSummary(completed.ID, completed.AppointmentID, completed.PatientID, nil, &attentionID)
+	if err != nil {
+		return nil, fmt.Errorf("build post-summary: %w", err)
+	}
+	postSummary, err := insertPostSummaryWithEvent(ctx, tx, summary, correlation.FromContext(ctx))
+	if err != nil {
+		return nil, err
+	}
+
 	// DEC-003, DEC-007: ConsultationCompleted is written in the same transaction.
-	event, err := model.NewConsultationCompletedEvent(completed, "", correlation.FromContext(ctx), time.Now().UTC())
+	event, err := model.NewConsultationCompletedEvent(completed, postSummary.ID, correlation.FromContext(ctx), time.Now().UTC())
 	if err != nil {
 		return nil, fmt.Errorf("build ConsultationCompleted: %w", err)
 	}
-	const qInsertOutbox = `
-		INSERT INTO outbox_event (event_id, event_type, payload, correlation_id, status, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, 'PENDING', now(), now())
-	`
-	if _, err := tx.Exec(ctx, qInsertOutbox, event.ID, event.EventType, []byte(event.Payload), event.CorrelationID); err != nil {
-		return nil, fmt.Errorf("insert outbox_event: %w", err)
+	if err := insertOutboxEvent(ctx, tx, event); err != nil {
+		return nil, err
 	}
 
 	if err := tx.Commit(ctx); err != nil {
