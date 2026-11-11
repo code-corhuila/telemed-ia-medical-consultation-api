@@ -10,6 +10,18 @@ import (
 // mapError translates a domain error to an HTTP status + a stable code.
 func mapError(err error) (int, string) {
 	switch {
+	case errors.Is(err, exception.ErrAppointmentNotFound):
+		return nethttp.StatusNotFound, "APPOINTMENT_NOT_FOUND"
+
+	case errors.Is(err, exception.ErrForbidden):
+		return nethttp.StatusForbidden, "FORBIDDEN"
+
+	case errors.Is(err, exception.ErrAppointmentServiceUnavailable):
+		return nethttp.StatusServiceUnavailable, "APPOINTMENT_SERVICE_UNAVAILABLE"
+
+	case errors.Is(err, exception.ErrAppointmentNotAttendable):
+		return nethttp.StatusConflict, "APPOINTMENT_NOT_ATTENDABLE"
+
 	case errors.Is(err, exception.ErrConsultationNotFound),
 		errors.Is(err, exception.ErrAttentionSummaryNotFound),
 		errors.Is(err, exception.ErrPostSummaryNotFound):
