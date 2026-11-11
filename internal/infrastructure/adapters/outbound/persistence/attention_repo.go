@@ -4,7 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"time"
 
+	"github.com/code-corhuila/telemed-ia-medical-consultation-api/internal/correlation"
 	"github.com/code-corhuila/telemed-ia-medical-consultation-api/internal/domain/exception"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -125,10 +128,27 @@ func (r *AttentionRepo) SaveAndComplete(ctx context.Context, s *model.AttentionS
 		return nil, err
 	}
 
-	const qUpdate = `UPDATE consultations SET status = 'COMPLETED', completed_at = now(), updated_at = now() WHERE id = $1`
-	_, err = tx.Exec(ctx, qUpdate, s.ConsultationID)
+	const qUpdate = `UPDATE consultations SET status = 'COMPLETED', completed_at = now(), updated_at = now()
+		WHERE id = $1 RETURNING ` + consultationColumns
+	completed, err := scanConsultation(tx.QueryRow(ctx, qUpdate, s.ConsultationID))
 	if err != nil {
 		return nil, err
+	}
+	if completed == nil {
+		return nil, exception.ErrConsultationNotFound
+	}
+
+	// DEC-003, DEC-007: ConsultationCompleted is written in the same transaction.
+	event, err := model.NewConsultationCompletedEvent(completed, correlation.FromContext(ctx), time.Now().UTC())
+	if err != nil {
+		return nil, fmt.Errorf("build ConsultationCompleted: %w", err)
+	}
+	const qInsertOutbox = `
+		INSERT INTO outbox_event (event_id, event_type, payload, correlation_id, status, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, 'PENDING', now(), now())
+	`
+	if _, err := tx.Exec(ctx, qInsertOutbox, event.ID, event.EventType, []byte(event.Payload), event.CorrelationID); err != nil {
+		return nil, fmt.Errorf("insert outbox_event: %w", err)
 	}
 
 	if err := tx.Commit(ctx); err != nil {
