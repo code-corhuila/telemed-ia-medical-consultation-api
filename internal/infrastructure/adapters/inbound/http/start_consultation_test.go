@@ -54,7 +54,7 @@ func newStartRig(t *testing.T) *startRig {
 	}
 
 	h := adapter.NewHandlers(
-		usecase.NewRecordAttention(cs, as), usecase.NewGetAttention(as), usecase.NewGetPostSummary(ps),
+		usecase.NewRecordAttention(cs, as), usecase.NewGetAttention(as), usecase.NewGetPostSummary(ps, cs),
 		usecase.NewGeneratePostSummary(cs, as, ps), cs, usecase.NewStartConsultation(cs, ar),
 	)
 	return &startRig{handler: adapter.NewRouter(h, publicPEM).Handler(), appointments: ar, key: key}

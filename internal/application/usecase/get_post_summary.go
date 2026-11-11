@@ -12,10 +12,11 @@ import (
 // GetPostSummary reads a post-consultation summary by id.
 type GetPostSummary struct {
 	postSummaries out.PostSummaryRepositoryPort
+	consultations out.ConsultationRepositoryPort
 }
 
-func NewGetPostSummary(postSummaries out.PostSummaryRepositoryPort) *GetPostSummary {
-	return &GetPostSummary{postSummaries: postSummaries}
+func NewGetPostSummary(postSummaries out.PostSummaryRepositoryPort, consultations out.ConsultationRepositoryPort) *GetPostSummary {
+	return &GetPostSummary{postSummaries: postSummaries, consultations: consultations}
 }
 
 func (uc *GetPostSummary) Execute(ctx context.Context, id string) (*dto.PostSummaryResponse, error) {
