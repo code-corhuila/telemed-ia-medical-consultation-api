@@ -33,6 +33,7 @@ func (r *Router) Handler() nethttp.Handler {
 	r.mux.Handle("GET /metrics", promhttp.Handler())
 
 	protected := nethttp.NewServeMux()
+	protected.HandleFunc("POST /api/consultations", r.handlers.StartConsultation)
 	protected.HandleFunc("POST /api/consultations/{id}/attention", r.handlers.RecordAttention)
 	protected.HandleFunc("GET /api/consultations/{id}/attention", r.handlers.GetAttention)
 	protected.HandleFunc("GET /api/post-summaries/{id}", r.handlers.GetPostSummary)
