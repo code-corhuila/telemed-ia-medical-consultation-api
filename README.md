@@ -42,6 +42,7 @@ internal/
 |--------|------|------|-------------|
 | GET | `/health` | no | — |
 | GET | `/metrics` | no | — |
+| POST | `/api/consultations` | yes (`PROFESSIONAL`) | required |
 | POST | `/api/consultations/{id}/attention` | yes | required |
 | GET | `/api/consultations/{id}/attention` | yes | — |
 | GET | `/api/post-summaries/{id}` | yes | — |
@@ -53,6 +54,7 @@ Environment variables (see `.env.example`):
 - `SERVER_PORT` — HTTP port (default `8080`).
 - `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_SCHEMA` — PostgreSQL connection.
 - `JWT_PUBLIC_KEY` — RS256 public key in PEM format (required).
+- `APPOINTMENT_API_URL` — internal base URL of appointment-scheduling (default `http://appointment-scheduling-api:8080`), and `APPOINTMENT_API_TIMEOUT` (default `3s`). `POST /api/consultations` reads the appointment there with the caller's token (DEC-006).
 - `HTTP_*_TIMEOUT` — server timeouts.
 - `DB_MAX_CONNS`, `DB_MIN_CONNS`, `DB_CONN_MAX_IDLE`, `DB_CONN_MAX_LIFETIME` — pool tuning.
 
