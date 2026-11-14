@@ -11,6 +11,7 @@ import (
 
 	"github.com/code-corhuila/telemed-ia-medical-consultation-api/internal/application/usecase"
 	inhttp "github.com/code-corhuila/telemed-ia-medical-consultation-api/internal/infrastructure/adapters/inbound/http"
+	"github.com/code-corhuila/telemed-ia-medical-consultation-api/internal/infrastructure/adapters/outbound/appointments"
 	"github.com/code-corhuila/telemed-ia-medical-consultation-api/internal/infrastructure/adapters/outbound/messaging"
 	"github.com/code-corhuila/telemed-ia-medical-consultation-api/internal/infrastructure/adapters/outbound/persistence"
 	"github.com/code-corhuila/telemed-ia-medical-consultation-api/internal/infrastructure/config"
@@ -41,17 +42,25 @@ func main() {
 	consultationRepo := persistence.NewConsultationRepo(pool)
 	attentionRepo := persistence.NewAttentionRepo(pool)
 	postSummaryRepo := persistence.NewPostSummaryRepo(pool)
-	eventPublisher := messaging.NewNoopPublisher()
 
 	// ---------- application ----------
 	recordAttention := usecase.NewRecordAttention(consultationRepo, attentionRepo)
 	getAttention := usecase.NewGetAttention(attentionRepo)
-	getPostSummary := usecase.NewGetPostSummary(postSummaryRepo)
+	getPostSummary := usecase.NewGetPostSummary(postSummaryRepo, consultationRepo)
 	generatePostSummary := usecase.NewGeneratePostSummary(consultationRepo, attentionRepo, postSummaryRepo)
+	appointmentReader := appointments.NewClient(cfg.AppointmentAPIURL, cfg.AppointmentAPITimeout)
+	startConsultation := usecase.NewStartConsultation(consultationRepo, appointmentReader)
 
 	// ---------- inbound ----------
-	handlers := inhttp.NewHandlers(recordAttention, getAttention, getPostSummary, generatePostSummary)
+	handlers := inhttp.NewHandlers(recordAttention, getAttention, getPostSummary, generatePostSummary, consultationRepo, startConsultation)
 	router := inhttp.NewRouter(handlers, cfg.JWTPublicKey)
+
+	// ---------- background workers ----------
+	// NewOutboxPoller does not connect; Start() does. If RabbitMQ is down,
+	// the poller will retry with backoff and the API keeps serving traffic.
+	outboxPoller := messaging.NewOutboxPoller(pool, cfg.RabbitMQURL)
+	outboxPoller.Start()
+	defer outboxPoller.Stop()
 
 	// ---------- http server ----------
 	srv := &http.Server{
@@ -62,10 +71,6 @@ func main() {
 		WriteTimeout:      cfg.HTTPWriteTimeout,
 		IdleTimeout:       cfg.HTTPIdleTimeout,
 	}
-
-	// Silence unused-var warnings for the publisher until it is wired to a
-	// real use case that emits events (follow-up PR once ADR-011 is accepted).
-	_ = eventPublisher
 
 	go func() {
 		slog.Info("starting server", "port", cfg.ServerPort)

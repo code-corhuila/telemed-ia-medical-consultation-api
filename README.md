@@ -41,6 +41,8 @@ internal/
 | Method | Path | Auth | Idempotency |
 |--------|------|------|-------------|
 | GET | `/health` | no | — |
+| GET | `/metrics` | no | — |
+| POST | `/api/consultations` | yes (`PROFESSIONAL`) | required |
 | POST | `/api/consultations/{id}/attention` | yes | required |
 | GET | `/api/consultations/{id}/attention` | yes | — |
 | GET | `/api/post-summaries/{id}` | yes | — |
@@ -52,6 +54,7 @@ Environment variables (see `.env.example`):
 - `SERVER_PORT` — HTTP port (default `8080`).
 - `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_SCHEMA` — PostgreSQL connection.
 - `JWT_PUBLIC_KEY` — RS256 public key in PEM format (required).
+- `APPOINTMENT_API_URL` — internal base URL of appointment-scheduling (default `http://appointment-scheduling-api:8080`), and `APPOINTMENT_API_TIMEOUT` (default `3s`). `POST /api/consultations` reads the appointment there with the caller's token (DEC-006).
 - `HTTP_*_TIMEOUT` — server timeouts.
 - `DB_MAX_CONNS`, `DB_MIN_CONNS`, `DB_CONN_MAX_IDLE`, `DB_CONN_MAX_LIFETIME` — pool tuning.
 
@@ -79,8 +82,30 @@ The container joins the external platform network so the gateway can reach it by
 
 Three permanent branches (`develop`, `qa`, `main`). No direct commits. Promotion between permanents uses `git cherry-pick -x` — no merge. Full policy lives in `library-docs`.
 
+## Observability
+
+- **Metrics**: `/metrics` exposes `medical_consultation_http_requests_total`
+  and `medical_consultation_http_duration_seconds`, both labeled by
+  `path`, `method`, `status` and `outcome` (`success` / `error`). UUIDs in
+  the path are masked to `{id}` to keep cardinality bounded.
+- **W3C Trace Context**: the `Correlation` middleware reads
+  `traceparent`, stores `traceId`/`spanId` in the context, and echoes the
+  header in the response. `X-Correlation-Id` is still used for structured
+  logs.
+- **Outbox**: events are written to `outbox_event` in the same transaction as
+  the business change: `PostConsultationSummaryGenerated` with the summary
+  (payload with the real `summaryId`), and `ConsultationCompleted` when the
+  attention is recorded (identifiers only, DEC-003/DEC-007).
+  The `OutboxPoller` publishes them to `consultation.events` with the routing
+  key of each type (`post-consultation-summary-generated`,
+  `consultation-completed`; an unknown type is never published) and
+  `mandatory=true`, retries with backoff (1s..60s), and marks rows as
+  `PUBLISHED` or `FAILED` based on `attempts` and `last_error`.
+- See `OBSERVABILITY.md` for the full catalog and PromQL snippets.
+
 ## Known technical debt
 
-- `EventPublisherPort` currently resolved by a no-op adapter until ADR-011 (broker) is accepted.
-- Idempotency store is in-memory; a persistent store (Redis or a table) is planned in a follow-up.
-- Integration tests against a real PostgreSQL (Testcontainers) are not yet implemented.
+- Integration tests against a real PostgreSQL (Testcontainers) are not
+  yet implemented; the use cases are tested against in-memory fakes.
+- Idempotency store is in-memory; a persistent store (Redis or a table)
+  is planned in a follow-up.

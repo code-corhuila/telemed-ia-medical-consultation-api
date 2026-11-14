@@ -4,11 +4,13 @@ package config
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 )
 
 // Config holds every runtime setting of the service.
 type Config struct {
+	RabbitMQURL string
 	ServerPort string
 
 	DBHost     string
@@ -19,6 +21,10 @@ type Config struct {
 	DBSchema   string
 
 	JWTPublicKey string
+
+	// AppointmentAPIURL is the internal base URL of appointment-scheduling (DEC-006).
+	AppointmentAPIURL     string
+	AppointmentAPITimeout time.Duration
 
 	HTTPReadHeaderTimeout time.Duration
 	HTTPReadTimeout       time.Duration
@@ -39,7 +45,11 @@ func Load() (*Config, error) {
 		DBPassword: getEnv("DB_PASSWORD", ""),
 		DBSchema:   getEnv("DB_SCHEMA", "medical_consultation"),
 
-		JWTPublicKey: os.Getenv("JWT_PUBLIC_KEY"),
+		JWTPublicKey: strings.ReplaceAll(os.Getenv("JWT_PUBLIC_KEY"), `\n`, "\n"),
+		RabbitMQURL:  os.Getenv("RABBITMQ_URL"),
+
+		AppointmentAPIURL:     strings.TrimRight(getEnv("APPOINTMENT_API_URL", "http://appointment-scheduling-api:8080"), "/"),
+		AppointmentAPITimeout: getDuration("APPOINTMENT_API_TIMEOUT", 3*time.Second),
 
 		HTTPReadHeaderTimeout: getDuration("HTTP_READ_HEADER_TIMEOUT", 5*time.Second),
 		HTTPReadTimeout:       getDuration("HTTP_READ_TIMEOUT", 15*time.Second),
