@@ -3,10 +3,14 @@ package persistence
 import (
 	"context"
 	"errors"
+	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/code-corhuila/telemed-ia-medical-consultation-api/internal/domain/exception"
 	"github.com/code-corhuila/telemed-ia-medical-consultation-api/internal/domain/model"
 )
 
@@ -36,16 +40,24 @@ func (r *PostSummaryRepo) Save(ctx context.Context, s *model.PostSummary) (*mode
 		s.ConsultationID, s.AppointmentID, s.PatientID,
 		s.PreconsultationSummaryID, s.AttentionSummaryID, s.GeneratedAt,
 	)
-	return scanPostSummary(row)
+	saved, err := scanPostSummary(row)
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return nil, exception.ErrPostSummaryAlreadyExists
+		}
+		return nil, err
+	}
+	return saved, nil
 }
 
-func (r *PostSummaryRepo) FindByID(ctx context.Context, id int64) (*model.PostSummary, error) {
+func (r *PostSummaryRepo) FindByID(ctx context.Context, id string) (*model.PostSummary, error) {
 	q := `SELECT ` + postSummaryColumns + ` FROM post_summaries WHERE id = $1`
 	row := r.pool.QueryRow(ctx, q, id)
 	return scanPostSummary(row)
 }
 
-func (r *PostSummaryRepo) FindByConsultationID(ctx context.Context, consultationID int64) (*model.PostSummary, error) {
+func (r *PostSummaryRepo) FindByConsultationID(ctx context.Context, consultationID string) (*model.PostSummary, error) {
 	q := `SELECT ` + postSummaryColumns + ` FROM post_summaries WHERE consultation_id = $1`
 	row := r.pool.QueryRow(ctx, q, consultationID)
 	return scanPostSummary(row)
@@ -64,4 +76,64 @@ func scanPostSummary(row pgx.Row) (*model.PostSummary, error) {
 		return nil, err
 	}
 	return &s, nil
+}
+
+func (r *PostSummaryRepo) SaveWithOutbox(ctx context.Context, s *model.PostSummary, correlationID string) (*model.PostSummary, error) {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+
+	saved, err := insertPostSummaryWithEvent(ctx, tx, s, correlationID)
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
+	}
+	return saved, nil
+}
+
+// insertPostSummaryWithEvent inserts the summary and its PostConsultationSummaryGenerated
+// outbox row in the caller's transaction.
+func insertPostSummaryWithEvent(ctx context.Context, tx pgx.Tx, s *model.PostSummary, correlationID string) (*model.PostSummary, error) {
+	const qInsertSummary = `
+		INSERT INTO post_summaries
+			(consultation_id, appointment_id, patient_id,
+			 preconsultation_summary_id, attention_summary_id, generated_at)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		RETURNING ` + postSummaryColumns
+
+	saved, err := scanPostSummary(tx.QueryRow(ctx, qInsertSummary,
+		s.ConsultationID, s.AppointmentID, s.PatientID,
+		s.PreconsultationSummaryID, s.AttentionSummaryID, s.GeneratedAt,
+	))
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return nil, exception.ErrPostSummaryAlreadyExists
+		}
+		return nil, err
+	}
+
+	event, err := model.NewPostSummaryGeneratedEvent(saved, correlationID, time.Now().UTC())
+	if err != nil {
+		return nil, fmt.Errorf("build PostConsultationSummaryGenerated: %w", err)
+	}
+	if err := insertOutboxEvent(ctx, tx, event); err != nil {
+		return nil, err
+	}
+	return saved, nil
+}
+
+func insertOutboxEvent(ctx context.Context, tx pgx.Tx, event model.OutboxEvent) error {
+	const q = `
+		INSERT INTO outbox_event (event_id, event_type, payload, correlation_id, status, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, 'PENDING', now(), now())
+	`
+	if _, err := tx.Exec(ctx, q, event.ID, event.EventType, []byte(event.Payload), event.CorrelationID); err != nil {
+		return fmt.Errorf("insert outbox_event: %w", err)
+	}
+	return nil
 }

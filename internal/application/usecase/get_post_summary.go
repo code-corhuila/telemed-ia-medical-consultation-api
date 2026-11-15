@@ -12,14 +12,15 @@ import (
 // GetPostSummary reads a post-consultation summary by id.
 type GetPostSummary struct {
 	postSummaries out.PostSummaryRepositoryPort
+	consultations out.ConsultationRepositoryPort
 }
 
-func NewGetPostSummary(postSummaries out.PostSummaryRepositoryPort) *GetPostSummary {
-	return &GetPostSummary{postSummaries: postSummaries}
+func NewGetPostSummary(postSummaries out.PostSummaryRepositoryPort, consultations out.ConsultationRepositoryPort) *GetPostSummary {
+	return &GetPostSummary{postSummaries: postSummaries, consultations: consultations}
 }
 
-func (uc *GetPostSummary) Execute(ctx context.Context, id int64) (*dto.PostSummaryResponse, error) {
-	if id <= 0 {
+func (uc *GetPostSummary) Execute(ctx context.Context, id string) (*dto.PostSummaryResponse, error) {
+	if id == "" {
 		return nil, exception.ErrPostSummaryNotFound
 	}
 	s, err := uc.postSummaries.FindByID(ctx, id)
@@ -29,7 +30,17 @@ func (uc *GetPostSummary) Execute(ctx context.Context, id int64) (*dto.PostSumma
 	if s == nil {
 		return nil, exception.ErrPostSummaryNotFound
 	}
-	return toPostSummaryResponse(s), nil
+	resp := toPostSummaryResponse(s)
+	// DEC-008: the patient's document shows who attended and when.
+	c, err := uc.consultations.FindByID(ctx, s.ConsultationID)
+	if err != nil {
+		return nil, err
+	}
+	if c != nil {
+		resp.ProfessionalID = c.ProfessionalID
+		resp.CompletedAt = c.CompletedAt
+	}
+	return resp, nil
 }
 
 func toPostSummaryResponse(s *model.PostSummary) *dto.PostSummaryResponse {

@@ -2,7 +2,6 @@ package usecase
 
 import (
 	"context"
-	"errors"
 
 	"github.com/code-corhuila/telemed-ia-medical-consultation-api/internal/application/dto"
 	"github.com/code-corhuila/telemed-ia-medical-consultation-api/internal/application/ports/out"
@@ -24,7 +23,7 @@ func NewRecordAttention(
 }
 
 func (uc *RecordAttention) Execute(ctx context.Context, cmd dto.RecordAttentionCommand) (*dto.AttentionSummaryResponse, error) {
-	if cmd.ConsultationID <= 0 {
+	if cmd.ConsultationID == "" {
 		return nil, exception.ErrInvalidAttentionSummary
 	}
 	c, err := uc.consultations.FindByID(ctx, cmd.ConsultationID)
@@ -35,7 +34,7 @@ func (uc *RecordAttention) Execute(ctx context.Context, cmd dto.RecordAttentionC
 		return nil, exception.ErrConsultationNotFound
 	}
 	if err := c.EnsureInProgress(); err != nil {
-		return nil, errors.New("consultation is not in progress")
+		return nil, exception.ErrConsultationAlreadyCompleted
 	}
 
 	meds := make([]model.MedicationInstruction, 0, len(cmd.Medications))
@@ -58,10 +57,11 @@ func (uc *RecordAttention) Execute(ctx context.Context, cmd dto.RecordAttentionC
 	if err != nil {
 		return nil, exception.ErrInvalidAttentionSummary
 	}
-	saved, err := uc.summaries.Save(ctx, s)
+	saved, err := uc.summaries.SaveAndComplete(ctx, s)
 	if err != nil {
 		return nil, err
 	}
+
 	return toAttentionResponse(saved), nil
 }
 
